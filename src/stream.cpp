@@ -12,7 +12,8 @@ using namespace rsimpl;
 rs_extrinsics stream_interface::get_extrinsics_to(const stream_interface & r) const
 {
     auto from = get_pose(), to = r.get_pose();
-    if(from == to) return {{1,0,0,0,1,0,0,0,1},{0,0,0}};
+    rs_extrinsics out = {{1,0,0,0,1,0,0,0,1},{0,0,0}};
+    if(from == to) return out;
     auto transform = inverse(from) * to;
     rs_extrinsics extrin;
     (float3x3 &)extrin.rotation = transform.orientation;
@@ -22,13 +23,16 @@ rs_extrinsics stream_interface::get_extrinsics_to(const stream_interface & r) co
 
 native_stream::native_stream(device_config & config, rs_stream stream) : config(config), stream(stream) 
 {
-    for(auto & subdevice_mode : config.info.subdevice_modes)
+//    for(auto & subdevice_mode : config.info.subdevice_modes)
+    for(std::vector<subdevice_mode>::const_iterator subdevice_mode=config.info.subdevice_modes.begin(); subdevice_mode!=config.info.subdevice_modes.end(); ++subdevice_mode)
     {
-        for(auto pad_crop : subdevice_mode.pad_crop_options)
+//        for(auto pad_crop : subdevice_mode->pad_crop_options)
+        for(std::vector<int>::const_iterator pad_crop=subdevice_mode->pad_crop_options.begin(); pad_crop!=subdevice_mode->pad_crop_options.end(); ++pad_crop)
         {
-            for(auto & unpacker : subdevice_mode.pf.unpackers)
+//            for(auto & unpacker : subdevice_mode->pf.unpackers)
+            for(std::vector<pixel_format_unpacker>::const_iterator unpacker=subdevice_mode->pf.unpackers.begin(); unpacker!=subdevice_mode->pf.unpackers.end(); ++unpacker)
             {
-                auto selection = subdevice_mode_selection(subdevice_mode, pad_crop, &unpacker - subdevice_mode.pf.unpackers.data());
+                auto selection = subdevice_mode_selection(*subdevice_mode, *pad_crop, &(*unpacker) - subdevice_mode->pf.unpackers.data());
                 if(selection.provides_stream(stream)) modes.push_back(selection);
             }
         }
@@ -39,9 +43,12 @@ native_stream::native_stream(device_config & config, rs_stream stream) : config(
         return std::make_tuple(-selection.get_width(), -selection.get_height(), -selection.get_framerate(stream), selection.get_format(stream));
     };
 
-    std::sort(begin(modes), end(modes), [get_tuple](const subdevice_mode_selection & a, const subdevice_mode_selection & b) { return get_tuple(a) < get_tuple(b); });
-    auto it = std::unique(begin(modes), end(modes), [get_tuple](const subdevice_mode_selection & a, const subdevice_mode_selection & b) { return get_tuple(a) == get_tuple(b); });
-    if(it != end(modes)) modes.erase(it, end(modes));
+//    std::sort(begin(modes), end(modes), [get_tuple](const subdevice_mode_selection & a, const subdevice_mode_selection & b) { return get_tuple(a) < get_tuple(b); });
+    std::sort(modes.begin(), modes.end(), [get_tuple](const subdevice_mode_selection & a, const subdevice_mode_selection & b) { return get_tuple(a) < get_tuple(b); });
+//    auto it = std::unique(begin(modes), end(modes), [get_tuple](const subdevice_mode_selection & a, const subdevice_mode_selection & b) { return get_tuple(a) == get_tuple(b); });
+    auto it = std::unique(modes.begin(), modes.end(), [get_tuple](const subdevice_mode_selection & a, const subdevice_mode_selection & b) { return get_tuple(a) == get_tuple(b); });
+//    if(it != end(modes)) modes.erase(it, end(modes));
+    if(it != modes.end()) modes.erase(it, modes.end());
 }
 
 void native_stream::get_mode(int mode, int * w, int * h, rs_format * f, int * fps) const
@@ -63,9 +70,11 @@ subdevice_mode_selection native_stream::get_mode() const
     if(archive && archive->is_stream_enabled(stream)) return archive->get_mode(stream);
     if(config.requests[stream].enabled)
     {
-        for(auto subdevice_mode : config.select_modes())
+//        for(auto subdevice_mode : config.select_modes())
+        std::vector<subdevice_mode_selection> subdevice_modes_temp = config.select_modes();
+        for(std::vector<subdevice_mode_selection>::const_iterator subdevice_mode=subdevice_modes_temp.begin(); subdevice_mode!=subdevice_modes_temp.end(); ++subdevice_mode)
         {
-            if(subdevice_mode.provides_stream(stream)) return subdevice_mode;
+            if(subdevice_mode->provides_stream(stream)) return *subdevice_mode;
         }   
         throw std::logic_error("no mode found"); // Should never happen, select_modes should throw if no mode can be found
     }

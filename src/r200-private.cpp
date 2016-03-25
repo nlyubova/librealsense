@@ -152,7 +152,11 @@ namespace rsimpl { namespace r200
             big_endian<float> rfx, rfy;
             big_endian<float> rpx, rpy;
             big_endian<uint32_t> rw, rh;
-            operator rs_intrinsics () const { return {(int)rw, (int)rh, rpx, rpy, rfx, rfy, RS_DISTORTION_NONE, {0,0,0,0,0}}; }
+//            operator rs_intrinsics () const { return {(int)rw, (int)rh, rpx, rpy, rfx, rfy, RS_DISTORTION_NONE, {0,0,0,0,0}}; }
+            operator rs_intrinsics () const { 
+                rs_intrinsics out = {(int)rw, (int)rh, rpx, rpy, rfx, rfy, RS_DISTORTION_NONE, {0,0,0,0,0}};
+                return out;
+            }
         };
 
         r200_calibration cameraCalib;
@@ -165,7 +169,11 @@ namespace rsimpl { namespace r200
                 big_endian<float> px, py;
                 big_endian<double> k[5];
                 big_endian<uint32_t> w, h;
-                operator rs_intrinsics () const { return {(int)w, (int)h, px, py, fx, fy, RS_DISTORTION_MODIFIED_BROWN_CONRADY, {(float)k[0],(float)k[1],(float)k[2],(float)k[3],(float)k[4]}}; }
+//                operator rs_intrinsics () const { return {(int)w, (int)h, px, py, fx, fy, RS_DISTORTION_MODIFIED_BROWN_CONRADY, {(float)k[0],(float)k[1],(float)k[2],(float)k[3],(float)k[4]}}; }
+                operator rs_intrinsics () const {
+                    rs_intrinsics out = {(int)w, (int)h, px, py, fx, fy, RS_DISTORTION_MODIFIED_BROWN_CONRADY, {(float)k[0],(float)k[1],(float)k[2],(float)k[3],(float)k[4]}};
+                    return out;
+               }
             };
 
             struct CameraCalibrationParametersV0
@@ -218,7 +226,11 @@ namespace rsimpl { namespace r200
                 big_endian<float> px, py;
                 big_endian<float> k[5];
                 big_endian<uint32_t> w, h;
-                operator rs_intrinsics () const { return {(int)w, (int)h, px, py, fx, fy, RS_DISTORTION_MODIFIED_BROWN_CONRADY, {k[0],k[1],k[2],k[3],k[4]}}; }
+//                operator rs_intrinsics () const { return {(int)w, (int)h, px, py, fx, fy, RS_DISTORTION_MODIFIED_BROWN_CONRADY, {k[0],k[1],k[2],k[3],k[4]}}; }
+                operator rs_intrinsics () const {
+                    rs_intrinsics out = {(int)w, (int)h, px, py, fx, fy, RS_DISTORTION_MODIFIED_BROWN_CONRADY, {k[0],k[1],k[2],k[3],k[4]}};
+                    return out;
+                }
             };
 
             struct CameraCalibrationParametersV2

@@ -10,10 +10,51 @@
 #include "libuvc/libuvc_internal.h" // For LibUSB punchthrough
 #include <thread>
 
+//#include <cstddef>
+//#if !defined(nullptr)
+//#define nullptr NULL
+//#endif
+
+#if defined(_MSC_VER)
+  #define ALWAYS_INLINE __forceinline
+#elif defined(__GNUC__)
+  #define ALWAYS_INLINE inline __attribute__((always_inline))
+#else
+  #define ALWAYS_INLINE inline
+#endif
+
 namespace rsimpl
 {
     namespace uvc
     {
+
+const class
+{
+  public:
+#if defined(__GNUC__) && (__GNUC__ == 4) && (__GNUC_MINOR__ == 5) && (__GNUC_PATCHLEVEL < 2)
+  ALWAYS_INLINE operator void*() const // works around bug #45383
+  {
+    return 0;
+  }
+#endif // #if defined(__GNUC__) && (__GNUC__ == 4) && __(__GNUC_MINOR__ == 5) && (__GNUC_PATCHLEVEL < 3)
+
+  template<typename T>
+  ALWAYS_INLINE operator T*() const
+  {
+    return 0;
+  }
+
+  template<class C, typename T>
+  ALWAYS_INLINE operator T C::*() const
+  {
+    return 0;
+  }
+
+  private:
+  void operator &() const; // not implemented on purpose
+
+} nullptr = {};
+
         static void check(const char * call, uvc_error_t status)
         {
             if (status < 0) throw std::runtime_error(to_string() << call << "(...) returned " << uvc_strerror(status));
@@ -30,7 +71,7 @@ namespace rsimpl
 
         struct subdevice
         {
-            uvc_device_handle_t * handle = nullptr;
+            uvc_device_handle_t * handle; // = nullptr;
             uvc_stream_ctrl_t ctrl;
             uint8_t unit;
             std::function<void(const void * frame)> callback;
@@ -56,13 +97,17 @@ namespace rsimpl
             }
             ~device()
             {
-                for(auto interface_number : claimed_interfaces)
+                //for(auto interface_number : claimed_interfaces)
+                for(std::vector<int>::const_iterator interface_number = claimed_interfaces.begin(); interface_number != claimed_interfaces.end(); ++interface_number)
                 {
-                    int status = libusb_release_interface(get_subdevice(0).handle->usb_devh, interface_number);
-                    if(status < 0) LOG_ERROR("libusb_release_interface(...) returned " << libusb_error_name(status));
+                    int status = libusb_release_interface(get_subdevice(0).handle->usb_devh, *interface_number);
+                    //if(status < 0) LOG_ERROR("libusb_release_interface(...) returned " << libusb_error_name(status));
+                    if(status < 0) LOG_ERROR("libusb_release_interface(...) returned ");
                 }
 
-                for(auto & sub : subdevices) if(sub.handle) uvc_close(sub.handle);
+                //for(auto & sub : subdevices) if(sub.handle) uvc_close(sub.handle);
+                for(std::vector<subdevice>::const_iterator sub = subdevices.begin(); sub != subdevices.end(); ++sub)
+                  if(sub->handle) uvc_close(sub->handle);
                 if(uvcdevice) uvc_unref_device(uvcdevice);
             }
 
@@ -84,26 +129,30 @@ namespace rsimpl
         void get_control(const device & dev, const extension_unit & xu, uint8_t ctrl, void * data, int len)
         {
             int status = uvc_get_ctrl(const_cast<device &>(dev).get_subdevice(xu.subdevice).handle, xu.unit, ctrl, data, len, UVC_GET_CUR);
-            if(status < 0) throw std::runtime_error(to_string() << "uvc_get_ctrl(...) returned " << libusb_error_name(status));
+            //if(status < 0) throw std::runtime_error(to_string() << "uvc_get_ctrl(...) returned " << libusb_error_name(status));
+            if(status < 0) throw std::runtime_error(to_string() << "uvc_get_ctrl(...) returned ");
         }
 
         void set_control(device & device, const extension_unit & xu, uint8_t ctrl, void * data, int len)
         {
             int status = uvc_set_ctrl(device.get_subdevice(xu.subdevice).handle, xu.unit, ctrl, data, len);
-            if(status < 0) throw std::runtime_error(to_string() << "uvc_set_ctrl(...) returned " << libusb_error_name(status));
+            //if(status < 0) throw std::runtime_error(to_string() << "uvc_set_ctrl(...) returned " << libusb_error_name(status));
+            if(status < 0) throw std::runtime_error(to_string() << "uvc_set_ctrl(...) returned ");
         }
 
         void claim_interface(device & device, const guid & interface_guid, int interface_number)
         {
             int status = libusb_claim_interface(device.get_subdevice(0).handle->usb_devh, interface_number);
-            if(status < 0) throw std::runtime_error(to_string() << "libusb_claim_interface(...) returned " << libusb_error_name(status));
+            //if(status < 0) throw std::runtime_error(to_string() << "libusb_claim_interface(...) returned " << libusb_error_name(status));
+            if(status < 0) throw std::runtime_error(to_string() << "libusb_claim_interface(...) returned ");
             device.claimed_interfaces.push_back(interface_number);
         }
 
         void bulk_transfer(device & device, unsigned char endpoint, void * data, int length, int *actual_length, unsigned int timeout)
         {
             int status = libusb_bulk_transfer(device.get_subdevice(0).handle->usb_devh, endpoint, (unsigned char *)data, length, actual_length, timeout);
-            if(status < 0) throw std::runtime_error(to_string() << "libusb_bulk_transfer(...) returned " << libusb_error_name(status));
+//            if(status < 0) throw std::runtime_error(to_string() << "libusb_bulk_transfer(...) returned " << libusb_error_name(status));
+            if(status < 0) throw std::runtime_error(to_string() << "libusb_bulk_transfer(...) returned ");
         }
 
         void set_subdevice_mode(device & device, int subdevice_index, int width, int height, uint32_t fourcc, int fps, std::function<void(const void * frame)> callback)
@@ -115,18 +164,19 @@ namespace rsimpl
 
         void start_streaming(device & device, int num_transfer_bufs)
         {
-            for(auto & sub : device.subdevices)
+//            for(auto & sub : device.subdevices)
+            for(std::vector<subdevice>::iterator sub = device.subdevices.begin(); sub != device.subdevices.end(); ++sub)
             {
-                if(sub.callback)
+                if(sub->callback)
                 {
                     #if defined (ENABLE_DEBUG_SPAM)
-                    uvc_print_stream_ctrl(&sub.ctrl, stdout);
+                    uvc_print_stream_ctrl(&sub->ctrl, stdout);
                     #endif
 
-                    check("uvc_start_streaming", uvc_start_streaming(sub.handle, &sub.ctrl, [](uvc_frame * frame, void * user)
+                    check("uvc_start_streaming", uvc_start_streaming(sub->handle, &sub->ctrl, [](uvc_frame * frame, void * user)
                     {
                         reinterpret_cast<subdevice *>(user)->callback(frame->data);
-                    }, &sub, 0, num_transfer_bufs));
+                    }, &(*sub), 0, num_transfer_bufs));
                 }
             }
         }
@@ -134,11 +184,12 @@ namespace rsimpl
         void stop_streaming(device & device)
         {
             // Stop all streaming
-            for(auto & sub : device.subdevices)
+            //for(auto & sub : device.subdevices)
+            for(std::vector<subdevice>::iterator sub=device.subdevices.begin(); sub!=device.subdevices.end(); ++sub)
             {
-                if(sub.handle) uvc_stop_streaming(sub.handle);
-                sub.ctrl = {};
-                sub.callback = {};
+                if(sub->handle) uvc_stop_streaming(sub->handle);
+                sub->ctrl = {};
+                sub->callback = {};
             }
         }
 
@@ -150,7 +201,8 @@ namespace rsimpl
             if(sizeof(T)==2) SHORT_TO_SW(value, buffer);
             if(sizeof(T)==4) INT_TO_DW(value, buffer);
             int status = libusb_control_transfer(devh->usb_devh, REQ_TYPE_SET, UVC_SET_CUR, control << 8, unit << 8 | (subdevice*2), buffer, sizeof(T), 0);
-            if(status < 0) throw std::runtime_error(to_string() << "libusb_control_transfer(...) returned " << libusb_error_name(status));
+//            if(status < 0) throw std::runtime_error(to_string() << "libusb_control_transfer(...) returned " << libusb_error_name(status));
+            if(status < 0) throw std::runtime_error(to_string() << "libusb_control_transfer(...) returned ");
             if(status != sizeof(T)) throw std::runtime_error("insufficient data written to usb");
         }
 
@@ -159,7 +211,8 @@ namespace rsimpl
             const int REQ_TYPE_GET = 0xa1;
             unsigned char buffer[4];
             int status = libusb_control_transfer(devh->usb_devh, REQ_TYPE_GET, uvc_get_thing, control << 8, unit << 8 | (subdevice*2), buffer, sizeof(T), 0);
-            if(status < 0) throw std::runtime_error(to_string() << "libusb_control_transfer(...) returned " << libusb_error_name(status));
+//            if(status < 0) throw std::runtime_error(to_string() << "libusb_control_transfer(...) returned " << libusb_error_name(status));
+            if(status < 0) throw std::runtime_error(to_string() << "libusb_control_transfer(...) returned ");
             if(status != sizeof(T)) throw std::runtime_error("insufficient data read from usb");
             if(sizeof(T)==1) return buffer[0];
             if(sizeof(T)==2) return SW_TO_SHORT(buffer);

@@ -32,8 +32,22 @@ namespace rsimpl
     static void translate_exception(const char * name, std::string args, rs_error ** error)
     {
         try { throw; }
-        catch (const std::exception & e) { if (error) *error = new rs_error {e.what(), name, move(args)}; } // todo - Handle case where THIS code throws
-        catch (...) { if (error) *error = new rs_error {"unknown error", name, move(args)}; } // todo - Handle case where THIS code throws
+//        catch (const std::exception & e) { if (error) *error = new rs_error {e.what(), name, move(args)}; } // todo - Handle case where THIS code throws
+
+        catch (const std::exception & e) { 
+            if (error) 
+            {
+                rs_error rs_er = {e.what(), name, move(args)};
+                *error = &rs_er; 
+            }
+        }
+        catch (...) { 
+            if (error)
+            {
+                rs_error rs_er = {"unknown error", name, move(args)};
+                *error = &rs_er; 
+            }
+        } // todo - Handle case where THIS code throws
     }
 }
 #define HANDLE_EXCEPTIONS_AND_RETURN(R, ...) catch(...) { std::ostringstream ss; rsimpl::stream_args(ss, #__VA_ARGS__, __VA_ARGS__); rsimpl::translate_exception(__FUNCTION__, ss.str(), error); return R; }
@@ -47,7 +61,8 @@ rs_context * rs_create_context(int api_version, rs_error ** error) try
     if (api_version != RS_API_VERSION) throw std::runtime_error("api version mismatch");
     return new rs_context();
 }
-HANDLE_EXCEPTIONS_AND_RETURN(nullptr, api_version)
+//HANDLE_EXCEPTIONS_AND_RETURN(nullptr, api_version)
+HANDLE_EXCEPTIONS_AND_RETURN(NULL, api_version)
 
 void rs_delete_context(rs_context * context, rs_error ** error) try
 {
@@ -69,7 +84,8 @@ rs_device * rs_get_device(rs_context * context, int index, rs_error ** error) tr
     VALIDATE_RANGE(index, 0, (int)context->devices.size()-1);
     return context->devices[index].get();
 }
-HANDLE_EXCEPTIONS_AND_RETURN(nullptr, context, index)
+//HANDLE_EXCEPTIONS_AND_RETURN(nullptr, context, index)
+HANDLE_EXCEPTIONS_AND_RETURN(NULL, context, index)
 
 
 
@@ -78,21 +94,24 @@ const char * rs_get_device_name(const rs_device * device, rs_error ** error) try
     VALIDATE_NOT_NULL(device);
     return device->get_name();
 }
-HANDLE_EXCEPTIONS_AND_RETURN(nullptr, device)
+//HANDLE_EXCEPTIONS_AND_RETURN(nullptr, device)
+HANDLE_EXCEPTIONS_AND_RETURN(NULL, device)
 
 const char * rs_get_device_serial(const rs_device * device, rs_error ** error) try
 {
     VALIDATE_NOT_NULL(device);
     return device->get_serial();
 }
-HANDLE_EXCEPTIONS_AND_RETURN(nullptr, device)
+HANDLE_EXCEPTIONS_AND_RETURN(NULL, device)
+//HANDLE_EXCEPTIONS_AND_RETURN(nullptr, device)
 
 const char * rs_get_device_firmware_version(const rs_device * device, rs_error ** error) try
 {
     VALIDATE_NOT_NULL(device);
     return device->get_firmware_version();
 }
-HANDLE_EXCEPTIONS_AND_RETURN(nullptr, device)
+//HANDLE_EXCEPTIONS_AND_RETURN(nullptr, device)
+HANDLE_EXCEPTIONS_AND_RETURN(NULL, device)
 
 
 void rs_get_device_extrinsics(const rs_device * device, rs_stream from, rs_stream to, rs_extrinsics * extrin, rs_error ** error) try
@@ -269,7 +288,8 @@ const void * rs_get_frame_data(const rs_device * device, rs_stream stream, rs_er
     VALIDATE_ENUM(stream);
     return device->get_stream_interface(stream).get_frame_data();
 }
-HANDLE_EXCEPTIONS_AND_RETURN(nullptr, device, stream)
+//HANDLE_EXCEPTIONS_AND_RETURN(nullptr, device, stream)
+HANDLE_EXCEPTIONS_AND_RETURN(NULL, device, stream)
 
 
 
@@ -278,35 +298,40 @@ const char * rs_get_stream_name(rs_stream stream, rs_error ** error) try
     VALIDATE_ENUM(stream);
     return rsimpl::get_string(stream);
 }
-HANDLE_EXCEPTIONS_AND_RETURN(nullptr, stream)
+//HANDLE_EXCEPTIONS_AND_RETURN(nullptr, stream)
+HANDLE_EXCEPTIONS_AND_RETURN(NULL, stream)
 
 const char * rs_get_format_name(rs_format format, rs_error ** error) try
 {
    VALIDATE_ENUM(format);
    return rsimpl::get_string(format);
 }
-HANDLE_EXCEPTIONS_AND_RETURN(nullptr, format)
+//HANDLE_EXCEPTIONS_AND_RETURN(nullptr, format)
+HANDLE_EXCEPTIONS_AND_RETURN(NULL, format)
 
 const char * rs_get_preset_name(rs_preset preset, rs_error ** error) try
 {
     VALIDATE_ENUM(preset);
     return rsimpl::get_string(preset);
 }
-HANDLE_EXCEPTIONS_AND_RETURN(nullptr, preset)
+//HANDLE_EXCEPTIONS_AND_RETURN(nullptr, preset)
+HANDLE_EXCEPTIONS_AND_RETURN(NULL, preset)
 
 const char * rs_get_distortion_name(rs_distortion distortion, rs_error ** error) try
 {
    VALIDATE_ENUM(distortion);
    return rsimpl::get_string(distortion);
 }
-HANDLE_EXCEPTIONS_AND_RETURN(nullptr, distortion)
+//HANDLE_EXCEPTIONS_AND_RETURN(nullptr, distortion)
+HANDLE_EXCEPTIONS_AND_RETURN(NULL, distortion)
 
 const char * rs_get_option_name(rs_option option, rs_error ** error) try
 {
     VALIDATE_ENUM(option);
     return rsimpl::get_string(option);
 }
-HANDLE_EXCEPTIONS_AND_RETURN(nullptr, option)
+//HANDLE_EXCEPTIONS_AND_RETURN(nullptr, option)
+HANDLE_EXCEPTIONS_AND_RETURN(NULL, option)
 
 
 
@@ -362,9 +387,12 @@ HANDLE_EXCEPTIONS_AND_RETURN(, device, option, value)
 
 
 void rs_free_error(rs_error * error) { if (error) delete error; }
-const char * rs_get_failed_function(const rs_error * error) { return error ? error->function : nullptr; }
-const char * rs_get_failed_args(const rs_error * error) { return error ? error->args.c_str() : nullptr; }
-const char * rs_get_error_message(const rs_error * error) { return error ? error->message.c_str() : nullptr; }
+//const char * rs_get_failed_function(const rs_error * error) { return error ? error->function : nullptr; }
+const char * rs_get_failed_function(const rs_error * error) { return error ? error->function : NULL; }
+//const char * rs_get_failed_args(const rs_error * error) { return error ? error->args.c_str() : nullptr; }
+const char * rs_get_failed_args(const rs_error * error) { return error ? error->args.c_str() : NULL; }
+//const char * rs_get_error_message(const rs_error * error) { return error ? error->message.c_str() : nullptr; }
+const char * rs_get_error_message(const rs_error * error) { return error ? error->message.c_str() : NULL; }
 
 
 

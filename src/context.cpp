@@ -6,24 +6,33 @@
 #include "r200.h"
 #include "f200.h"
 
-rs_context::rs_context() : rs_context(0)
+//rs_context::rs_context() : rs_context(0)
+rs_context::rs_context() //: rs_context(0)
 {
+    rs_context(0);
+
     context = rsimpl::uvc::create_context();
 
-    for(auto device : query_devices(context))
+//    for(auto device : query_devices(context))
+    std::vector<std::shared_ptr<rsimpl::uvc::device>> devices_for = query_devices(context);
+    for(std::vector<std::shared_ptr<rsimpl::uvc::device>>::iterator device=devices_for.begin(); device!=devices_for.end(); ++device)
     {
-        LOG_INFO("UVC device detected with VID = 0x" << std::hex << get_vendor_id(*device) << " PID = 0x" << get_product_id(*device));
+        LOG_INFO("UVC device detected with VID = 0x" << std::hex << get_vendor_id(**device) << " PID = 0x" << get_product_id(**device));
 
-		if (get_vendor_id(*device) != 32902)
+		if (get_vendor_id(**device) != 32902)
 			continue;
 				
-        switch(get_product_id(*device))
+        switch(get_product_id(**device))
         {
-        case 2688: devices.push_back(rsimpl::make_r200_device(device)); break;
-        case 2662: devices.push_back(rsimpl::make_f200_device(device)); break;
-        case 2725: devices.push_back(rsimpl::make_sr300_device(device)); break;
+        case 2688: devices.push_back(rsimpl::make_r200_device(*device)); break;
+        case 2662: devices.push_back(rsimpl::make_f200_device(*device)); break;
+        case 2725: devices.push_back(rsimpl::make_sr300_device(*device)); break;
         }
     }
+
+//new
+    if(singleton_alive) throw std::runtime_error("rs_context has singleton semantics, only one may exist at a time");
+    singleton_alive = true;
 }
 
 // Enforce singleton semantics on rs_context

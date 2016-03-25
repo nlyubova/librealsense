@@ -33,29 +33,56 @@ namespace rsimpl { namespace f200
 
     struct IVCAMThermalLoopParams
     {
-        float IRThermalLoopEnable = 1;      // enable the mechanism
-        float TimeOutA = 10000;             // default time out
-        float TimeOutB = 0;                 // reserved
-        float TimeOutC = 0;                 // reserved
-        float TransitionTemp = 3;           // celcius degrees, the transition temperatures to ignore and use offset;
-        float TempThreshold = 2;            // celcius degrees, the temperatures delta that above should be fixed;
-        float HFOVsensitivity = 0.025f;
-        float FcxSlopeA = -0.003696988f;    // the temperature model fc slope a from slope_hfcx = ref_fcx*a + b
-        float FcxSlopeB = 0.005809239f;     // the temperature model fc slope b from slope_hfcx = ref_fcx*a + b
-        float FcxSlopeC = 0;                // reserved
-        float FcxOffset = 0;                // the temperature model fc offset
-        float UxSlopeA = -0.000210918f;     // the temperature model ux slope a from slope_ux = ref_ux*a + ref_fcx*b
-        float UxSlopeB = 0.000034253955f;   // the temperature model ux slope b from slope_ux = ref_ux*a + ref_fcx*b
-        float UxSlopeC = 0;                 // reserved
-        float UxOffset = 0;                 // the temperature model ux offset
-        float LiguriaTempWeight = 1;        // the liguria temperature weight in the temperature delta calculations
-        float IrTempWeight = 0;             // the Ir temperature weight in the temperature delta calculations
-        float AmbientTempWeight = 0;        // reserved
-        float Param1 = 0;                   // reserved
-        float Param2 = 0;                   // reserved
-        float Param3 = 0;                   // reserved
-        float Param4 = 0;                   // reserved
-        float Param5 = 0;                   // reserved
+        float IRThermalLoopEnable;      // enable the mechanism
+        float TimeOutA;                 // default time out
+        float TimeOutB;                 // reserved
+        float TimeOutC;                 // reserved
+        float TransitionTemp;           // celcius degrees, the transition temperatures to ignore and use offset;
+        float TempThreshold;            // celcius degrees, the temperatures delta that above should be fixed;
+        float HFOVsensitivity;
+        float FcxSlopeA;                // the temperature model fc slope a from slope_hfcx = ref_fcx*a + b
+        float FcxSlopeB;                // the temperature model fc slope b from slope_hfcx = ref_fcx*a + b
+        float FcxSlopeC;                // reserved
+        float FcxOffset;                // the temperature model fc offset
+        float UxSlopeA;                 // the temperature model ux slope a from slope_ux = ref_ux*a + ref_fcx*b
+        float UxSlopeB;                 // the temperature model ux slope b from slope_ux = ref_ux*a + ref_fcx*b
+        float UxSlopeC;                 // reserved
+        float UxOffset;                 // the temperature model ux offset
+        float LiguriaTempWeight;        // the liguria temperature weight in the temperature delta calculations
+        float IrTempWeight;             // the Ir temperature weight in the temperature delta calculations
+        float AmbientTempWeight;        // reserved
+        float Param1;                   // reserved
+        float Param2;                   // reserved
+        float Param3;                   // reserved
+        float Param4;                   // reserved
+        float Param5;                   // reserved
+
+        IVCAMThermalLoopParams()
+        {
+            IRThermalLoopEnable = 1;      // enable the mechanism
+            TimeOutA = 10000;             // default time out
+            TimeOutB = 0;                 // reserved
+            TimeOutC = 0;                 // reserved
+            TransitionTemp = 3;           // celcius degrees, the transition temperatures to ignore and use offset;
+            TempThreshold = 2;            // celcius degrees, the temperatures delta that above should be fixed;
+            HFOVsensitivity = 0.025f;
+            FcxSlopeA = -0.003696988f;    // the temperature model fc slope a from slope_hfcx = ref_fcx*a + b
+            FcxSlopeB = 0.005809239f;     // the temperature model fc slope b from slope_hfcx = ref_fcx*a + b
+            float FcxSlopeC = 0;                // reserved
+            float FcxOffset = 0;                // the temperature model fc offset
+            float UxSlopeA = -0.000210918f;     // the temperature model ux slope a from slope_ux = ref_ux*a + ref_fcx*b
+            float UxSlopeB = 0.000034253955f;   // the temperature model ux slope b from slope_ux = ref_ux*a + ref_fcx*b
+            float UxSlopeC = 0;                 // reserved
+            float UxOffset = 0;                 // the temperature model ux offset
+            float LiguriaTempWeight = 1;        // the liguria temperature weight in the temperature delta calculations
+            float IrTempWeight = 0;             // the Ir temperature weight in the temperature delta calculations
+            float AmbientTempWeight = 0;        // reserved
+            float Param1 = 0;                   // reserved
+            float Param2 = 0;                   // reserved
+            float Param3 = 0;                   // reserved
+            float Param4 = 0;                   // reserved
+            float Param5 = 0;                   // reserved
+        }
     };
 
     struct IVCAMTemperatureData

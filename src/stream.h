@@ -31,7 +31,7 @@ namespace rsimpl
     
     class frame_archive;
 
-    struct native_stream final : public stream_interface
+/*    struct native_stream final : public stream_interface
     {
         const device_config &                   config;
         const rs_stream                         stream;
@@ -54,9 +54,33 @@ namespace rsimpl
 
         int                                     get_frame_number() const override;
         const byte *                            get_frame_data() const override;
+    };*/
+    struct native_stream : public stream_interface
+    {
+        const device_config &                   config;
+        const rs_stream                         stream;
+        std::vector<subdevice_mode_selection>   modes;
+        std::shared_ptr<frame_archive>          archive;
+
+                                                native_stream(device_config & config, rs_stream stream);
+
+        pose                                    get_pose() const { return config.info.stream_poses[stream]; }
+        float                                   get_depth_scale() const { return config.depth_scale; }
+        int                                     get_mode_count() const { return (int)modes.size(); }
+        void                                    get_mode(int mode, int * w, int * h, rs_format * f, int * fps) const;
+
+        bool                                    is_enabled() const;
+        subdevice_mode_selection                get_mode() const;
+        rs_intrinsics                           get_intrinsics() const;
+        rs_intrinsics                           get_rectified_intrinsics() const;
+        rs_format                               get_format() const { return get_mode().get_format(stream); }
+        int                                     get_framerate() const { return get_mode().get_framerate(stream); }
+
+        int                                     get_frame_number() const;
+        const byte *                            get_frame_data() const;
     };
 
-    class point_stream final : public stream_interface
+/*    class point_stream final : public stream_interface
     {
         const stream_interface &                source;
         mutable std::vector<byte>               image;
@@ -75,9 +99,30 @@ namespace rsimpl
 
         int                                     get_frame_number() const override { return source.get_frame_number(); }
         const byte *                            get_frame_data() const override;
+    };*/
+    class point_stream : public stream_interface
+    {
+        const stream_interface &                source;
+        mutable std::vector<byte>               image;
+        mutable int                             number;
+    public:
+                                                point_stream(const stream_interface & source) : source(source), number() {}
+
+        pose                                    get_pose() const { return {{{1,0,0},{0,1,0},{0,0,1}}, source.get_pose().position}; }
+        float                                   get_depth_scale() const { return source.get_depth_scale(); }
+
+        bool                                    is_enabled() const { return source.is_enabled(); }
+        rs_intrinsics                           get_intrinsics() const { return source.get_intrinsics(); }
+        rs_intrinsics                           get_rectified_intrinsics() const { return source.get_rectified_intrinsics(); }
+        rs_format                               get_format() const { return RS_FORMAT_XYZ32F; }
+        int                                     get_framerate() const { return source.get_framerate(); }
+
+        int                                     get_frame_number() const { return source.get_frame_number(); }
+        const byte *                            get_frame_data() const ;
     };
 
-    class rectified_stream final : public stream_interface
+
+    /*class rectified_stream final : public stream_interface
     {
         const stream_interface &                source;
         mutable std::vector<int>                table;
@@ -97,9 +142,30 @@ namespace rsimpl
 
         int                                     get_frame_number() const override { return source.get_frame_number(); }
         const byte *                            get_frame_data() const override;
+    };*/
+    class rectified_stream : public stream_interface
+    {
+        const stream_interface &                source;
+        mutable std::vector<int>                table;
+        mutable std::vector<byte>               image;
+        mutable int                             number;
+    public:
+                                                rectified_stream(const stream_interface & source) : source(source), number() {}
+
+        pose                                    get_pose() const { return {{{1,0,0},{0,1,0},{0,0,1}}, source.get_pose().position}; }
+        float                                   get_depth_scale() const { return source.get_depth_scale(); }
+
+        bool                                    is_enabled() const { return source.is_enabled(); }
+        rs_intrinsics                           get_intrinsics() const { return source.get_rectified_intrinsics(); }
+        rs_intrinsics                           get_rectified_intrinsics() const { return source.get_rectified_intrinsics(); }
+        rs_format                               get_format() const { return source.get_format(); }
+        int                                     get_framerate() const { return source.get_framerate(); }
+
+        int                                     get_frame_number() const { return source.get_frame_number(); }
+        const byte *                            get_frame_data() const ;
     };
 
-    class aligned_stream final : public stream_interface
+/*    class aligned_stream final : public stream_interface
     {
         const stream_interface &                from, & to;
         mutable std::vector<byte>               image;
@@ -118,6 +184,26 @@ namespace rsimpl
 
         int                                     get_frame_number() const override { return from.get_frame_number(); }
         const byte *                            get_frame_data() const override;
+    };*/
+    class aligned_stream : public stream_interface
+    {
+        const stream_interface &                from, & to;
+        mutable std::vector<byte>               image;
+        mutable int                             number;
+    public:
+                                                aligned_stream(const stream_interface & from, const stream_interface & to) : from(from), to(to), number() {}
+
+        pose                                    get_pose() const { return to.get_pose(); }
+        float                                   get_depth_scale() const { return to.get_depth_scale(); }
+
+        bool                                    is_enabled() const { return from.is_enabled() && to.is_enabled(); }
+        rs_intrinsics                           get_intrinsics() const { return to.get_intrinsics(); }
+        rs_intrinsics                           get_rectified_intrinsics() const { return to.get_rectified_intrinsics(); }
+        rs_format                               get_format() const { return from.get_format(); }
+        int                                     get_framerate() const { return from.get_framerate(); }
+
+        int                                     get_frame_number() const { return from.get_frame_number(); }
+        const byte *                            get_frame_data() const ;
     };
 }
 

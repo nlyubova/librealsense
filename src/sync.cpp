@@ -5,28 +5,40 @@ using namespace rsimpl;
 frame_archive::frame_archive(const std::vector<subdevice_mode_selection> & selection, rs_stream key_stream) : key_stream(key_stream)
 {
     // Store the mode selection that pertains to each native stream
-    for(auto & mode : selection)
+//    for(auto & mode : selection)
+    for(std::vector<subdevice_mode_selection>::const_iterator mode=selection.begin(); mode!=selection.end(); ++mode)
     {
-        for(auto & o : mode.get_outputs())
+//        for(auto & o : mode->get_outputs())
+        std::vector<std::pair<rs_stream, rs_format>> outputs = mode->get_outputs();
+        for(std::vector<std::pair<rs_stream, rs_format>>::const_iterator o=outputs.begin(); o!=outputs.end(); ++o)
         {
-            modes[o.first] = mode;
+            modes[o->first] = *mode;
         }
     }
 
     // Enumerate all streams we need to keep synchronized with the key stream
-    for(auto s : {RS_STREAM_DEPTH, RS_STREAM_INFRARED, RS_STREAM_INFRARED2, RS_STREAM_COLOR})
+    /*for(auto s : {RS_STREAM_DEPTH, RS_STREAM_INFRARED, RS_STREAM_INFRARED2, RS_STREAM_COLOR})
     {
         if(is_stream_enabled(s) && s != key_stream) other_streams.push_back(s);
+    }*/
+    for(int i=0; i<4; ++i)
+    {
+        if(is_stream_enabled((rs_stream)i) && (rs_stream)i != key_stream) other_streams.push_back((rs_stream)i);
     }
+/*    if(is_stream_enabled(RS_STREAM_DEPTH) && RS_STREAM_DEPTH != key_stream) other_streams.push_back(RS_STREAM_DEPTH);
+    if(is_stream_enabled(RS_STREAM_INFRARED) && RS_STREAM_INFRARED != key_stream) other_streams.push_back(RS_STREAM_INFRARED);
+    if(is_stream_enabled(RS_STREAM_INFRARED2) && RS_STREAM_INFRARED2 != key_stream) other_streams.push_back(RS_STREAM_INFRARED2);
+    if(is_stream_enabled(RS_STREAM_COLOR) && RS_STREAM_COLOR != key_stream) other_streams.push_back(RS_STREAM_COLOR);*/
 
     // Allocate an empty image for each stream, and move it to the frontbuffer
     // This allows us to assume that get_frame_data/get_frame_timestamp always return valid data
     alloc_frame(key_stream, 0);
     frontbuffer[key_stream] = std::move(backbuffer[key_stream]);
-    for(auto s : other_streams)
+//    for(auto s : other_streams)
+    for(std::vector<rs_stream>::const_iterator s=other_streams.begin(); s!=other_streams.end(); ++s)
     {
-        alloc_frame(s, 0);
-        frontbuffer[s] = std::move(backbuffer[s]);
+        alloc_frame(*s, 0);
+        frontbuffer[*s] = std::move(backbuffer[*s]);
     }
 }
 
@@ -66,11 +78,12 @@ void frame_archive::get_next_frames()
     dequeue_frame(key_stream);
 
     // Dequeue from other streams if the new frame is closer to the timestamp of the key stream than the old frame
-    for(auto s : other_streams)
+//    for(auto s : other_streams)
+    for(std::vector<rs_stream>::const_iterator s=other_streams.begin(); s!=other_streams.end(); ++s)
     {
-        if(!frames[s].empty() && abs(frames[s].front().timestamp - frontbuffer[key_stream].timestamp) <= abs(frontbuffer[s].timestamp - frontbuffer[key_stream].timestamp))
+        if(!frames[*s].empty() && abs(frames[*s].front().timestamp - frontbuffer[key_stream].timestamp) <= abs(frontbuffer[*s].timestamp - frontbuffer[key_stream].timestamp))
         {
-            dequeue_frame(s);
+            dequeue_frame(*s);
         }
     }
 }
@@ -84,7 +97,8 @@ byte * frame_archive::alloc_frame(rs_stream stream, int timestamp)
         std::lock_guard<std::mutex> guard(mutex);
 
         // Attempt to obtain a buffer of the appropriate size from the freelist
-        for(auto it = begin(freelist); it != end(freelist); ++it)
+//        for(auto it = begin(freelist); it != end(freelist); ++it)
+        for(auto it = freelist.begin(); it != freelist.end(); ++it)
         {
             if(it->data.size() == size)
             {
@@ -95,7 +109,8 @@ byte * frame_archive::alloc_frame(rs_stream stream, int timestamp)
         }
 
         // Discard buffers that have been in the freelist for longer than 1s
-        for(auto it = begin(freelist); it != end(freelist); )
+//        for(auto it = begin(freelist); it != end(freelist); )
+        for(auto it = freelist.begin(); it != freelist.end(); ++it)
         {
             if(timestamp > it->timestamp + 1000) it = freelist.erase(it);
             else ++it;
@@ -121,17 +136,26 @@ void frame_archive::commit_frame(rs_stream stream)
 void frame_archive::cull_frames()
 {
     // Never keep more than four frames around in any given stream, regardless of timestamps
-    for(auto s : {RS_STREAM_DEPTH, RS_STREAM_COLOR, RS_STREAM_INFRARED, RS_STREAM_INFRARED2})
+    /*for(auto s : {RS_STREAM_DEPTH, RS_STREAM_COLOR, RS_STREAM_INFRARED, RS_STREAM_INFRARED2})
     {
         while(frames[s].size() > 4)
         {
             discard_frame(s);
         }
+    }*/
+    for(int i=0; i<4; ++i)
+    {
+        while(frames[(rs_stream)i].size() > 4)
+        {
+            discard_frame((rs_stream)i);
+        }
     }
 
     // Cannot do any culling unless at least one frame is enqueued for each enabled stream
     if(frames[key_stream].empty()) return;
-    for(auto s : other_streams) if(frames[s].empty()) return;
+//    for(auto s : other_streams) if(frames[s].empty()) return;
+    for(std::vector<rs_stream>::const_iterator s=other_streams.begin(); s!=other_streams.end(); ++s)
+        if(frames[*s].empty()) return;
 
     // We can discard frames from the key stream if we have at least two and the latter is closer to the most recent frame of all other streams than the former
     while(true)
@@ -140,9 +164,10 @@ void frame_archive::cull_frames()
         const int t0 = frames[key_stream][0].timestamp, t1 = frames[key_stream][1].timestamp;
 
         bool valid_to_skip = true;
-        for(auto s : other_streams)
+//        for(auto s : other_streams)
+        for(std::vector<rs_stream>::const_iterator s=other_streams.begin(); s!=other_streams.end(); ++s)
         {
-            if(abs(t0 - frames[s].back().timestamp) < abs(t1 - frames[s].back().timestamp))
+            if(abs(t0 - frames[*s].back().timestamp) < abs(t1 - frames[*s].back().timestamp))
             {
                 valid_to_skip = false;
                 break;
@@ -154,15 +179,16 @@ void frame_archive::cull_frames()
     }
 
     // We can discard frames for other streams if we have at least two and the latter is closer to the next key stream frame than the former
-    for(auto s : other_streams)
+//    for(auto s : other_streams)
+    for(std::vector<rs_stream>::const_iterator s=other_streams.begin(); s!=other_streams.end(); ++s)
     {
         while(true)
         {
-            if(frames[s].size() < 2) break;
-            const int t0 = frames[s][0].timestamp, t1 = frames[s][1].timestamp;
+            if(frames[*s].size() < 2) break;
+            const int t0 = frames[*s][0].timestamp, t1 = frames[*s][1].timestamp;
 
             if(abs(t0 - frames[key_stream].front().timestamp) < abs(t1 - frames[key_stream].front().timestamp)) break;
-            discard_frame(s);
+            discard_frame(*s);
         }
     }
 }
@@ -172,12 +198,14 @@ void frame_archive::dequeue_frame(rs_stream stream)
 {
     if(!frontbuffer[stream].data.empty()) freelist.push_back(std::move(frontbuffer[stream]));
     frontbuffer[stream] = std::move(frames[stream].front());
-    frames[stream].erase(begin(frames[stream]));
+//    frames[stream].erase(begin(frames[stream]));
+    frames[stream].erase(frames[stream].begin());
 }
 
 // Move a single frame from the head of the queue directly to the freelist
 void frame_archive::discard_frame(rs_stream stream)
 {
     freelist.push_back(std::move(frames[stream].front()));
-    frames[stream].erase(begin(frames[stream]));    
+//    frames[stream].erase(begin(frames[stream]));    
+    frames[stream].erase(frames[stream].begin());
 }

@@ -15,8 +15,11 @@ namespace rsimpl
 {
     static rs_intrinsics MakeDepthIntrinsics(const f200::CameraCalibrationParameters & c, const int2 & dims)
     {
-        return {dims.x, dims.y, (c.Kc[0][2]*0.5f + 0.5f) * dims.x, (c.Kc[1][2]*0.5f + 0.5f) * dims.y, c.Kc[0][0]*0.5f * dims.x, c.Kc[1][1]*0.5f * dims.y,
+/*        return {dims.x, dims.y, (c.Kc[0][2]*0.5f + 0.5f) * dims.x, (c.Kc[1][2]*0.5f + 0.5f) * dims.y, c.Kc[0][0]*0.5f * dims.x, c.Kc[1][1]*0.5f * dims.y,
+            RS_DISTORTION_INVERSE_BROWN_CONRADY, {c.Invdistc[0], c.Invdistc[1], c.Invdistc[2], c.Invdistc[3], c.Invdistc[4]}};*/
+        rs_intrinsics out = {dims.x, dims.y, (c.Kc[0][2]*0.5f + 0.5f) * dims.x, (c.Kc[1][2]*0.5f + 0.5f) * dims.y, c.Kc[0][0]*0.5f * dims.x, c.Kc[1][1]*0.5f * dims.y,
             RS_DISTORTION_INVERSE_BROWN_CONRADY, {c.Invdistc[0], c.Invdistc[1], c.Invdistc[2], c.Invdistc[3], c.Invdistc[4]}};
+        return out;
     }
 
     static rs_intrinsics MakeColorIntrinsics(const f200::CameraCalibrationParameters & c, const int2 & dims)
@@ -65,30 +68,44 @@ namespace rsimpl
 
         // Color modes on subdevice 0
         info.stream_subdevices[RS_STREAM_COLOR] = 0;
-        for(auto & m : f200_color_modes)
+//        for(auto & m : f200_color_modes)
+        for(int i=0; i<9; ++i)
         {
-            for(auto fps : m.fps)
+            f200_mode m = f200_color_modes[i];
+//            for(auto fps : m.fps)
+            for(std::vector<int>::const_iterator fps=m.fps.begin(); fps!=m.fps.end(); ++fps)
             {
-                info.subdevice_modes.push_back({0, m.dims, pf_yuy2, fps, MakeColorIntrinsics(c, m.dims), {}, {0}});
+                subdevice_mode out = {0, m.dims, pf_yuy2, *fps, MakeColorIntrinsics(c, m.dims), {}, {0}};
+                info.subdevice_modes.push_back(out);
             }
         }
 
         // Depth and IR modes on subdevice 1
         info.stream_subdevices[RS_STREAM_DEPTH] = 1;
         info.stream_subdevices[RS_STREAM_INFRARED] = 1;
-        for(auto & m : f200_ir_only_modes)
+//        for(auto & m : f200_ir_only_modes)
+        for(int i=0; i<2; ++i)
         {
-            for(auto fps : m.fps)
+            f200_mode m = f200_ir_only_modes[i];
+//            for(auto fps : m.fps)
+            for(std::vector<int>::const_iterator fps=m.fps.begin(); fps!=m.fps.end(); ++fps)
             {
-                info.subdevice_modes.push_back({1, m.dims, pf_f200_invi, fps, MakeDepthIntrinsics(c, m.dims), {}, {0}});
+                subdevice_mode out = {1, m.dims, pf_f200_invi, *fps, MakeDepthIntrinsics(c, m.dims), {}, {0}};
+                info.subdevice_modes.push_back(out);
             }
         }
-        for(auto & m : f200_depth_modes)
+//        for(auto & m : f200_depth_modes)
+        for(int i=0; i<2; ++i)
         {
-            for(auto fps : m.fps)
+            f200_mode m = f200_depth_modes[i];
+//            for(auto fps : m.fps)
+            for(std::vector<int>::const_iterator fps=m.fps.begin(); fps!=m.fps.end(); ++fps)
             {
-                info.subdevice_modes.push_back({1, m.dims, pf_invz, fps, MakeDepthIntrinsics(c, m.dims), {}, {0}});       
-                info.subdevice_modes.push_back({1, m.dims, pf_f200_inzi, fps, MakeDepthIntrinsics(c, m.dims), {}, {0}});
+                subdevice_mode out = {1, m.dims, pf_invz, *fps, MakeDepthIntrinsics(c, m.dims), {}, {0}};
+                info.subdevice_modes.push_back(out);
+//                info.subdevice_modes.push_back({1, m.dims, pf_f200_inzi, *fps, MakeDepthIntrinsics(c, m.dims), {}, {0}});
+                out = {1, m.dims, pf_f200_inzi, *fps, MakeDepthIntrinsics(c, m.dims), {}, {0}};
+                info.subdevice_modes.push_back(out);
             }
         }
 
@@ -149,30 +166,43 @@ namespace rsimpl
         
         // Color modes on subdevice 0
         info.stream_subdevices[RS_STREAM_COLOR] = 0;
-        for(auto & m : sr300_color_modes)
+//        for(auto & m : sr300_color_modes)
+        for(int i=0; i<9; ++i)
         {
-            for(auto fps : m.fps)
+            f200_mode m = sr300_color_modes[i];
+//            for(auto fps : m.fps)
+            for(std::vector<int>::const_iterator fps=m.fps.begin(); fps!=m.fps.end(); ++fps)
             {
-                info.subdevice_modes.push_back({0, m.dims, pf_yuy2, fps, MakeColorIntrinsics(c, m.dims), {}, {0}});
+                subdevice_mode out = {0, m.dims, pf_yuy2, *fps, MakeColorIntrinsics(c, m.dims), {}, {0}};
+                info.subdevice_modes.push_back(out);
             }
         }
 
         // Depth and IR modes on subdevice 1
         info.stream_subdevices[RS_STREAM_DEPTH] = 1;
         info.stream_subdevices[RS_STREAM_INFRARED] = 1;
-        for(auto & m : sr300_ir_only_modes)
+//        for(auto & m : sr300_ir_only_modes)
+        for(int i=0; i<1; ++i)
         {
-            for(auto fps : m.fps)
+            f200_mode m = sr300_ir_only_modes[i];
+//            for(auto fps : m.fps)
+            for(std::vector<int>::const_iterator fps=m.fps.begin(); fps!=m.fps.end(); ++fps)
             {
-                info.subdevice_modes.push_back({1, m.dims, pf_sr300_invi, fps, MakeDepthIntrinsics(c, m.dims), {}, {0}});             
+                subdevice_mode out = {1, m.dims, pf_sr300_invi, *fps, MakeDepthIntrinsics(c, m.dims), {}, {0}};
+                info.subdevice_modes.push_back(out);             
             }
         }
-        for(auto & m : sr300_depth_modes)
+//        for(auto & m : sr300_depth_modes)
+        for(int i=0; i<2; ++i)
         {
-            for(auto fps : m.fps)
+            f200_mode m = sr300_depth_modes[i];
+//            for(auto fps : m.fps)
+            for(std::vector<int>::const_iterator fps=m.fps.begin(); fps!=m.fps.end(); ++fps)
             {
-                info.subdevice_modes.push_back({1, m.dims, pf_invz, fps, MakeDepthIntrinsics(c, m.dims), {}, {0}});       
-                info.subdevice_modes.push_back({1, m.dims, pf_sr300_inzi, fps, MakeDepthIntrinsics(c, m.dims), {}, {0}});
+                subdevice_mode out = {1, m.dims, pf_invz, *fps, MakeDepthIntrinsics(c, m.dims), {}, {0}};
+                info.subdevice_modes.push_back(out);       
+                out = {1, m.dims, pf_sr300_inzi, *fps, MakeDepthIntrinsics(c, m.dims), {}, {0}};
+                info.subdevice_modes.push_back(out);
             }
         }
 
@@ -294,20 +324,27 @@ namespace rsimpl
     rs_stream f200_camera::select_key_stream(const std::vector<rsimpl::subdevice_mode_selection> & selected_modes)
     {
         int fps[RS_STREAM_NATIVE_COUNT] = {}, max_fps = 0;
-        for(const auto & m : selected_modes)
+//        for(const auto & m : selected_modes)
+        for(std::vector<subdevice_mode_selection>::const_iterator m=selected_modes.begin(); m!=selected_modes.end(); ++m)
         {
-            for(const auto & output : m.get_outputs())
+//            for(const auto & output : m->get_outputs())
+            std::vector<std::pair<rs_stream, rs_format>> outputs = m->get_outputs();
+            for(std::vector<std::pair<rs_stream, rs_format>>::const_iterator output=outputs.begin(); output!=outputs.end(); ++output)
             {
-                fps[output.first] = m.mode.fps;
-                max_fps = std::max(max_fps, m.mode.fps);
+                fps[output->first] = m->mode.fps;
+                max_fps = std::max(max_fps, m->mode.fps);
             }
         }
 
         // Prefer to sync on depth or infrared, but select the stream running at the fastest framerate
-        for(auto s : {RS_STREAM_DEPTH, RS_STREAM_INFRARED2, RS_STREAM_COLOR})
+/*        for(auto s : {RS_STREAM_DEPTH, RS_STREAM_INFRARED2, RS_STREAM_COLOR})
         {
             if(fps[s] == max_fps) return s;
-        }
+        }*/
+        if(fps[RS_STREAM_DEPTH] == max_fps) return RS_STREAM_DEPTH;
+        if(fps[RS_STREAM_INFRARED2] == max_fps) return RS_STREAM_INFRARED2;
+        if(fps[RS_STREAM_COLOR] == max_fps) return RS_STREAM_COLOR;
+
         return RS_STREAM_DEPTH;
     }
 
@@ -377,7 +414,7 @@ namespace rsimpl
     void f200_camera::set_options(const rs_option options[], int count, const double values[])
     {
         auto arr_writer = make_struct_interface<f200::IVCAMAutoRangeRequest>([this]() { return arr; }, [this](f200::IVCAMAutoRangeRequest r) {
-            f200::set_auto_range(get_device(), usbMutex, r.enableMvR, r.minMvR, r.maxMvR, r.startMvR, r.enableLaser, r.minLaser, r.maxLaser, r.startLaser, r.ARUpperTh, r.ARLowerTh);
+            f200::set_auto_range(this->get_device(), usbMutex, r.enableMvR, r.minMvR, r.maxMvR, r.startMvR, r.enableLaser, r.minLaser, r.maxLaser, r.startLaser, r.ARUpperTh, r.ARLowerTh);
             arr = r;
         });
 
@@ -465,7 +502,9 @@ namespace rsimpl
     public:
         rolling_timestamp_reader() : started(), total() {}
         
-        bool validate_frame(const subdevice_mode & mode, const void * frame) const override
+//        bool validate_frame(const subdevice_mode & mode, const void * frame) const override
+        bool validate_frame(const subdevice_mode & mode, const void * frame) const
+
         { 
             // Validate that at least one byte of the image is nonzero
             for(const uint8_t * it = (const uint8_t *)frame, * end = it + mode.pf.get_image_size(mode.native_dims.x, mode.native_dims.y); it != end; ++it)
@@ -481,7 +520,8 @@ namespace rsimpl
             return false;
         }
 
-        int get_frame_timestamp(const subdevice_mode & mode, const void * frame) override 
+//        int get_frame_timestamp(const subdevice_mode & mode, const void * frame) override 
+        int get_frame_timestamp(const subdevice_mode & mode, const void * frame)
         {
             // Timestamps are encoded within the first 32 bits of the image
             int rolling_timestamp =  *reinterpret_cast<const int32_t *>(frame);

@@ -27,7 +27,8 @@ namespace rsimpl
         CASE(DEPTH_ALIGNED_TO_RECTIFIED_COLOR)
         CASE(INFRARED2_ALIGNED_TO_DEPTH)
         CASE(DEPTH_ALIGNED_TO_INFRARED2)
-        default: assert(!is_valid(value)); return nullptr;
+//        default: assert(!is_valid(value)); return nullptr;
+        default: assert(!is_valid(value)); return NULL;
         }
         #undef CASE
     }
@@ -49,7 +50,8 @@ namespace rsimpl
         CASE(Y8)
         CASE(Y16)
         CASE(RAW10)
-        default: assert(!is_valid(value)); return nullptr;
+//        default: assert(!is_valid(value)); return nullptr;
+        default: assert(!is_valid(value)); return NULL;
         }
         #undef CASE
     }
@@ -62,7 +64,8 @@ namespace rsimpl
         CASE(BEST_QUALITY)
         CASE(LARGEST_IMAGE)
         CASE(HIGHEST_FRAMERATE)
-        default: assert(!is_valid(value)); return nullptr;
+//        default: assert(!is_valid(value)); return nullptr;
+        default: assert(!is_valid(value)); return NULL;
         }
         #undef CASE
     }
@@ -75,7 +78,8 @@ namespace rsimpl
         CASE(NONE)
         CASE(MODIFIED_BROWN_CONRADY)
         CASE(INVERSE_BROWN_CONRADY)
-        default: assert(!is_valid(value)); return nullptr;
+//        default: assert(!is_valid(value)); return nullptr;
+        default: assert(!is_valid(value)); return NULL;
         }
         #undef CASE
     }
@@ -141,7 +145,8 @@ namespace rsimpl
         CASE(R200_DEPTH_CONTROL_SECOND_PEAK_THRESHOLD)       
         CASE(R200_DEPTH_CONTROL_NEIGHBOR_THRESHOLD)          
         CASE(R200_DEPTH_CONTROL_LR_THRESHOLD)
-        default: assert(!is_valid(value)); return nullptr;
+//        default: assert(!is_valid(value)); return nullptr;
+        default: assert(!is_valid(value)); return NULL;
         }
         #undef CASE
     }
@@ -198,11 +203,20 @@ namespace rsimpl
 
     static_device_info::static_device_info()
     {
-        for(auto & s : stream_subdevices) s = -1;
-        for(auto & s : presets) for(auto & p : s) p = stream_request();
-        for(auto & p : stream_poses)
+//        for(auto & s : stream_subdevices) s = -1;
+        for(int i=0; i<RS_STREAM_NATIVE_COUNT; ++i)
+          stream_subdevices[i] = -1;
+
+//        for(auto & s : presets) for(auto & p : s) p = stream_request();
+        for(int i=0; i<RS_STREAM_NATIVE_COUNT; ++i)
+            for(int j=0; j<RS_PRESET_COUNT; ++j)
+                presets[i][j] = stream_request();
+
+//        for(auto & p : stream_poses)
+        for(int i=0; i<RS_STREAM_NATIVE_COUNT; ++i)
         {
-            p = {{{1,0,0},{0,1,0},{0,0,1}}, {0,0,0}};
+//            p = {{{1,0,0},{0,1,0},{0,0,1}}, {0,0,0}};
+            stream_poses[i] = {{{1,0,0},{0,1,0},{0,0,1}}, {0,0,0}};
         }
     }
 
@@ -224,33 +238,39 @@ namespace rsimpl
         if(!any_stream_requested) return subdevice_mode_selection();
 
         // Look for an appropriate mode
-        for(auto & subdevice_mode : info.subdevice_modes)
+//        for(auto & subdevice_mode : info.subdevice_modes)
+        for(std::vector<subdevice_mode>::const_iterator subdevice_mode=info.subdevice_modes.begin(); subdevice_mode!=info.subdevice_modes.end(); ++subdevice_mode)
         {
             // Skip modes that apply to other subdevices
-            if(subdevice_mode.subdevice != subdevice_index) continue;
+            if(subdevice_mode->subdevice != subdevice_index) continue;
 
-            for(auto pad_crop : subdevice_mode.pad_crop_options)
+//            for(auto pad_crop : subdevice_mode->pad_crop_options)
+            for(std::vector<int>::const_iterator pad_crop=subdevice_mode->pad_crop_options.begin(); pad_crop!=subdevice_mode->pad_crop_options.end(); ++pad_crop)
             {
-                for(auto & unpacker : subdevice_mode.pf.unpackers)
+//                for(auto & unpacker : subdevice_mode->pf.unpackers)
+                for(std::vector<pixel_format_unpacker>::const_iterator unpacker=subdevice_mode->pf.unpackers.begin(); unpacker!=subdevice_mode->pf.unpackers.end(); ++unpacker)
                 {
-                    auto selection = subdevice_mode_selection(subdevice_mode, pad_crop, &unpacker - subdevice_mode.pf.unpackers.data());
+//                    auto selection = subdevice_mode_selection(subdevice_mode, pad_crop, &unpacker - subdevice_mode->pf.unpackers.data());
+                    auto selection = subdevice_mode_selection(*subdevice_mode, *pad_crop, &(*unpacker) - subdevice_mode->pf.unpackers.data());
 
                     // Determine if this mode satisfies the requirements on our requested streams
                     auto stream_unsatisfied = stream_requested;
-                    for(auto & output : unpacker.outputs)
+//                    for(auto & output : unpacker.outputs)
+                    for(std::vector<std::pair<rs_stream, rs_format>>::const_iterator output=unpacker->outputs.begin(); output!=unpacker->outputs.end(); ++output)
                     {
-                        const auto & req = requests[output.first];
+                        const auto & req = requests[output->first];
                         if(req.enabled && (req.width == 0 || req.width == selection.get_width())
                                        && (req.height == 0 || req.height == selection.get_height())
-                                       && (req.format == RS_FORMAT_ANY || req.format == selection.get_format(output.first))
-                                       && (req.fps == 0 || req.fps == subdevice_mode.fps))
+                                       && (req.format == RS_FORMAT_ANY || req.format == selection.get_format(output->first))
+                                       && (req.fps == 0 || req.fps == subdevice_mode->fps))
                         {
-                            stream_unsatisfied[output.first] = false;
+                            stream_unsatisfied[output->first] = false;
                         }
                     }
 
                     // If any requested streams are still unsatisfied, skip to the next mode
-                    if(std::any_of(begin(stream_unsatisfied), end(stream_unsatisfied), [](bool b) { return b; })) continue;
+//                    if(std::any_of(begin(stream_unsatisfied), end(stream_unsatisfied), [](bool b) { return b; })) continue;
+                    if(std::any_of(stream_unsatisfied.begin(), stream_unsatisfied.end(), [](bool b) { return b; })) continue;
                     return selection;
                 }
             }
@@ -278,26 +298,29 @@ namespace rsimpl
         for(int i=0; i<RS_STREAM_NATIVE_COUNT; ++i) requests[i] = reqs[i];
 
         // Check and modify requests to enforce all interstream constraints
-        for(auto & rule : info.interstream_rules)
+//        for(auto & rule : info.interstream_rules)
+        for(std::vector<interstream_rule>::const_iterator rule=info.interstream_rules.begin(); rule!=info.interstream_rules.end(); ++rule)
         {
-            auto & a = requests[rule.a], & b = requests[rule.b]; auto f = rule.field;
+            auto & a = requests[rule->a], & b = requests[rule->b]; auto f = rule->field;
             if(a.enabled && b.enabled)
             {
                 // Check for incompatibility if both values specified
-                if(a.*f != 0 && b.*f != 0 && a.*f + rule.delta != b.*f && a.*f + rule.delta2 != b.*f)
+                if(a.*f != 0 && b.*f != 0 && a.*f + rule->delta != b.*f && a.*f + rule->delta2 != b.*f)
                 {
-                    throw std::runtime_error(to_string() << "requested " << rule.a << " and " << rule.b << " settings are incompatible");
+                    throw std::runtime_error(to_string() << "requested " << rule->a << " and " << rule->b << " settings are incompatible");
                 }
 
                 // If only one value is specified, modify the other request to match
-                if(a.*f != 0 && b.*f == 0) b.*f = a.*f + rule.delta;
-                if(a.*f == 0 && b.*f != 0) a.*f = b.*f - rule.delta;
+                if(a.*f != 0 && b.*f == 0) b.*f = a.*f + rule->delta;
+                if(a.*f == 0 && b.*f != 0) a.*f = b.*f - rule->delta;
             }
         }
 
         // Select subdevice modes needed to satisfy our requests
         int num_subdevices = 0;
-        for(auto & mode : info.subdevice_modes) num_subdevices = std::max(num_subdevices, mode.subdevice+1);
+//        for(auto & mode : info.subdevice_modes) num_subdevices = std::max(num_subdevices, mode.subdevice+1);
+        for(std::vector<subdevice_mode>::const_iterator mode=info.subdevice_modes.begin(); mode!=info.subdevice_modes.end(); ++mode)
+            num_subdevices = std::max(num_subdevices, mode->subdevice+1);
         std::vector<subdevice_mode_selection> selected_modes;
         for(int i = 0; i < num_subdevices; ++i)
         {

@@ -156,6 +156,7 @@ namespace rs
         std::string function, args;
     public:
         error(rs_error * err) : std::runtime_error(rs_get_error_message(err)), function(rs_get_failed_function(err)), args(rs_get_failed_args(err)) { rs_free_error(err); }
+        virtual ~error() throw() {};
         const std::string & get_failed_function() const { return function; }
         const std::string & get_failed_args() const { return args; }
         static void handle(rs_error * e) { if(e) throw error(e); }
@@ -169,21 +170,24 @@ namespace rs
     public:
         context()
         {
-            rs_error * e = nullptr;
+//            rs_error * e = nullptr;
+            rs_error * e = NULL;
             handle = rs_create_context(4, &e);
             error::handle(e);
         }
 
         ~context()
         {
-            rs_delete_context(handle, nullptr);
+//            rs_delete_context(handle, nullptr);
+            rs_delete_context(handle, NULL);
         }
 
         /// determine number of connected devices
         /// \return  the count of devices
         int get_device_count() const
         {
-            rs_error * e = nullptr;
+//            rs_error * e = nullptr;
+            rs_error * e = NULL;
             auto r = rs_get_device_count(handle, &e);
             error::handle(e);
             return r;
@@ -194,7 +198,8 @@ namespace rs
         /// \return           the requested device
         device * get_device(int index)
         {
-            rs_error * e = nullptr;
+//            rs_error * e = nullptr;
+            rs_error * e = NULL;
             auto r = rs_get_device(handle, index, &e);
             error::handle(e);
             return (device *)r;
@@ -212,7 +217,8 @@ namespace rs
         /// \return  the model string, such as "Intel RealSense F200" or "Intel RealSense R200"
         const char * get_name() const
         {
-            rs_error * e = nullptr;
+//            rs_error * e = nullptr;
+            rs_error * e = NULL;
             auto r = rs_get_device_name((const rs_device *)this, &e);
             error::handle(e);
             return r;
@@ -222,7 +228,8 @@ namespace rs
         /// \return  the serial number, in a format specific to the device model
         const char * get_serial() const
         {
-            rs_error * e = nullptr;
+//            rs_error * e = nullptr;
+            rs_error * e = NULL;
             auto r = rs_get_device_serial((const rs_device *)this, &e);
             error::handle(e);
             return r;
@@ -232,7 +239,8 @@ namespace rs
         /// \return  firmware version string, in a format is specific to device model
         const char * get_firmware_version() const
         {
-            rs_error * e = nullptr;
+//            rs_error * e = nullptr;
+            rs_error * e = NULL;
             auto r = rs_get_device_firmware_version((const rs_device *)this, &e);
             error::handle(e);
             return r;
@@ -244,7 +252,8 @@ namespace rs
         /// \return                 the transformation between the two streams
         extrinsics get_extrinsics(stream from_stream, stream to_stream) const
         {
-            rs_error * e = nullptr;
+//            rs_error * e = nullptr;
+            rs_error * e = NULL;
             extrinsics extrin;
             rs_get_device_extrinsics((const rs_device *)this, (rs_stream)from_stream, (rs_stream)to_stream, &extrin, &e);
             error::handle(e);
@@ -255,7 +264,8 @@ namespace rs
         /// \return  depth in meters corresponding to a depth value of 1
         float get_depth_scale() const
         {
-            rs_error * e = nullptr;
+//            rs_error * e = nullptr;
+            rs_error * e = NULL;
             auto r = rs_get_device_depth_scale((const rs_device *)this, &e);
             error::handle(e);
             return r;
@@ -266,7 +276,8 @@ namespace rs
         /// \return            true if the option can be queried and set
         bool supports_option(option option) const
         {
-            rs_error * e = nullptr;
+//            rs_error * e = nullptr;
+            rs_error * e = NULL;
             auto r = rs_device_supports_option((const rs_device *)this, (rs_option)option, &e);
             error::handle(e);
             return r != 0;
@@ -277,7 +288,8 @@ namespace rs
         /// \return            the count of available modes
         int get_stream_mode_count(stream stream) const
         {
-            rs_error * e = nullptr;
+//            rs_error * e = nullptr;
+            rs_error * e = NULL;
             auto r = rs_get_stream_mode_count((const rs_device *)this, (rs_stream)stream, &e);
             error::handle(e);
             return r;
@@ -292,7 +304,8 @@ namespace rs
         /// \param[out] framerate  the number of frames which will be streamed per second
         void get_stream_mode(stream stream, int index, int & width, int & height, format & format, int & framerate) const
         {
-            rs_error * e = nullptr;
+//            rs_error * e = nullptr;
+            rs_error * e = NULL;
             rs_get_stream_mode((const rs_device *)this, (rs_stream)stream, index, &width, &height, (rs_format *)&format, &framerate, &e);
             error::handle(e);
         }
@@ -305,7 +318,8 @@ namespace rs
         /// \param[in] framerate  the number of frames which will be streamed per second, or 0 if any framerate is acceptable
         void enable_stream(stream stream, int width, int height, format format, int framerate)
         {
-            rs_error * e = nullptr;
+//            rs_error * e = nullptr;
+            rs_error * e = NULL;
             rs_enable_stream((rs_device *)this, (rs_stream)stream, width, height, (rs_format)format, framerate, &e);
             error::handle(e);
         }
@@ -315,7 +329,8 @@ namespace rs
         /// \param[in] preset  the preset to use to enable the stream
         void enable_stream(stream stream, preset preset)
         {
-            rs_error * e = nullptr;
+//            rs_error * e = nullptr;
+            rs_error * e = NULL;
             rs_enable_stream_preset((rs_device *)this, (rs_stream)stream, (rs_preset)preset, &e);
             error::handle(e);
         }
@@ -324,7 +339,8 @@ namespace rs
         /// \param[in] stream  the stream to disable
         void disable_stream(stream stream)
         {
-            rs_error * e = nullptr;
+//            rs_error * e = nullptr;
+            rs_error * e = NULL;
             rs_disable_stream((rs_device *)this, (rs_stream)stream, &e);
             error::handle(e);
         }
@@ -334,7 +350,8 @@ namespace rs
         /// \return            true if the stream is currently enabled
         bool is_stream_enabled(stream stream) const
         {
-            rs_error * e = nullptr;
+//            rs_error * e = nullptr;
+            rs_error * e = NULL;
             auto r = rs_is_stream_enabled((const rs_device *)this, (rs_stream)stream, &e);
             error::handle(e);
             return r != 0;
@@ -345,7 +362,8 @@ namespace rs
         /// \return            the width in pixels of images from this stream
         int get_stream_width(stream stream) const
         {
-            rs_error * e = nullptr;
+//            rs_error * e = nullptr;
+            rs_error * e = NULL;
             auto r = rs_get_stream_width((const rs_device *)this, (rs_stream)stream, &e);
             error::handle(e);
             return r;
@@ -356,7 +374,8 @@ namespace rs
         /// \return            the height in pixels of images from this stream
         int get_stream_height(stream stream) const
         {
-            rs_error * e = nullptr;
+//            rs_error * e = nullptr;
+            rs_error * e = NULL;
             auto r = rs_get_stream_height((const rs_device *)this, (rs_stream)stream, &e);
             error::handle(e);
             return r;
@@ -367,7 +386,8 @@ namespace rs
         /// \return            the pixel format of the stream
         format get_stream_format(stream stream) const
         {
-            rs_error * e = nullptr;
+//            rs_error * e = nullptr;
+            rs_error * e = NULL;
             auto r = rs_get_stream_format((const rs_device *)this, (rs_stream)stream, &e);
             error::handle(e);
             return (format)r;
@@ -378,7 +398,8 @@ namespace rs
         /// \return            the framerate of the stream, in frames per second
         int get_stream_framerate(stream stream) const
         {
-            rs_error * e = nullptr;
+//            rs_error * e = nullptr;
+            rs_error * e = NULL;
             auto r = rs_get_stream_framerate((const rs_device *)this, (rs_stream)stream, &e);
             error::handle(e);
             return r;
@@ -389,7 +410,8 @@ namespace rs
         /// \return            the intrinsic parameters of the stream
         intrinsics get_stream_intrinsics(stream stream) const
         {
-            rs_error * e = nullptr;
+//            rs_error * e = nullptr;
+            rs_error * e = NULL;
             intrinsics intrin;
             rs_get_stream_intrinsics((const rs_device *)this, (rs_stream)stream, &intrin, &e);
             error::handle(e);
@@ -400,7 +422,8 @@ namespace rs
         ///
         void start()
         {
-            rs_error * e = nullptr;
+//            rs_error * e = nullptr;
+            rs_error * e = NULL;
             rs_start_device((rs_device *)this, &e);
             error::handle(e);
         }
@@ -409,7 +432,8 @@ namespace rs
         ///
         void stop()
         {
-            rs_error * e = nullptr;
+//            rs_error * e = nullptr;
+            rs_error * e = NULL;
             rs_stop_device((rs_device *)this, &e);
             error::handle(e);
         }
@@ -418,7 +442,8 @@ namespace rs
         /// \return  true if the device is currently streaming
         bool is_streaming() const
         {
-            rs_error * e = nullptr;
+//            rs_error * e = nullptr;
+            rs_error * e = NULL;
             auto r = rs_is_device_streaming((const rs_device *)this, &e);
             error::handle(e);
             return r != 0;
@@ -431,7 +456,8 @@ namespace rs
         /// \param[out] step   the granularity of options which accept discrete values, or zero if the option accepts continuous values
         void get_option_range(option option, double & min, double & max, double & step)
         {
-            rs_error * e = nullptr;
+//            rs_error * e = nullptr;
+            rs_error * e = NULL;
             rs_get_device_option_range((rs_device *)this, (rs_option)option, &min, &max, &step, &e);
             error::handle(e);
         }
@@ -442,7 +468,8 @@ namespace rs
         /// \param[out] values  the array which will receive the values of the queried options
         void get_options(const option * options, int count, double * values)
         {
-            rs_error * e = nullptr;
+//            rs_error * e = nullptr;
+            rs_error * e = NULL;
             rs_get_device_options((rs_device *)this, (const rs_option *)options, count, values, &e);
             error::handle(e);
         }
@@ -453,7 +480,8 @@ namespace rs
         /// \param[in] values   the array of values to which the options should be set
         void set_options(const option * options, int count, const double * values)
         {
-            rs_error * e = nullptr;
+//            rs_error * e = nullptr;
+            rs_error * e = NULL;
             rs_set_device_options((rs_device *)this, (const rs_option *)options, count, values, &e);
             error::handle(e);
         }
@@ -463,7 +491,8 @@ namespace rs
         /// \return            the value of the option
         double get_option(option option)
         {
-            rs_error * e = nullptr;
+//            rs_error * e = nullptr;
+            rs_error * e = NULL;
             auto r = rs_get_device_option((rs_device *)this, (rs_option)option, &e);
             error::handle(e);
             return r;
@@ -474,7 +503,8 @@ namespace rs
         /// \param[in] value   the value of the option
         void set_option(option option, double value)
         {
-            rs_error * e = nullptr;
+//            rs_error * e = nullptr;
+            rs_error * e = NULL;
             rs_set_device_option((rs_device *)this, (rs_option)option, value, &e);
             error::handle(e);
         }
@@ -483,7 +513,8 @@ namespace rs
         ///
         void wait_for_frames()
         {
-            rs_error * e = nullptr;
+//            rs_error * e = nullptr;
+            rs_error * e = NULL;
             rs_wait_for_frames((rs_device *)this, &e);
             error::handle(e);
         }
@@ -492,7 +523,8 @@ namespace rs
         /// \return  true if new frames are available, false if no new frames have arrived
         bool poll_for_frames()
         {
-            rs_error * e = nullptr;
+//            rs_error * e = nullptr;
+            rs_error * e = NULL;
             auto r = rs_poll_for_frames((rs_device *)this, &e);
             error::handle(e);
             return r != 0;
@@ -503,7 +535,8 @@ namespace rs
         /// \return            the timestamp of the frame, in milliseconds since the device was started
         int get_frame_timestamp(stream stream) const
         {
-            rs_error * e = nullptr;
+//            rs_error * e = nullptr;
+            rs_error * e = NULL;
             auto r = rs_get_frame_timestamp((const rs_device *)this, (rs_stream)stream, &e);
             error::handle(e);
             return r;
@@ -514,7 +547,8 @@ namespace rs
         /// \return            the pointer to the start of the frame data
         const void * get_frame_data(stream stream) const
         {
-            rs_error * e = nullptr;
+//            rs_error * e = nullptr;
+            rs_error * e = NULL;
             auto r = rs_get_frame_data((const rs_device *)this, (rs_stream)stream, &e);
             error::handle(e);
             return r;
@@ -539,14 +573,16 @@ namespace rs
 
     inline void log_to_console(log_severity min_severity)
     {
-        rs_error * e = nullptr;
+//        rs_error * e = nullptr;
+        rs_error * e = NULL;
         rs_log_to_console((rs_log_severity)min_severity, &e);
         error::handle(e);
     }
 
     inline void log_to_file(log_severity min_severity, const char * file_path)
     {
-        rs_error * e = nullptr;
+//        rs_error * e = nullptr;
+        rs_error * e = NULL;
         rs_log_to_file((rs_log_severity)min_severity, file_path, &e);
         error::handle(e);
     }

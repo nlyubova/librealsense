@@ -11,10 +11,10 @@ endif
 
 LIBUSB_FLAGS := `pkg-config --cflags --libs libusb-1.0`
 
-CFLAGS := -std=c11 -fPIC -pedantic -DRS_USE_$(BACKEND)_BACKEND $(LIBUSB_FLAGS) 
-CXXFLAGS := -std=c++11 -fPIC -pedantic -mssse3 -O3 -Wno-missing-field-initializers
-CXXFLAGS += -Wno-switch -Wno-multichar -DRS_USE_$(BACKEND)_BACKEND $(LIBUSB_FLAGS) 
-
+CFLAGS := -fPIC -pedantic -DRS_USE_$(BACKEND)_BACKEND $(LIBUSB_FLAGS)
+CXXFLAGS := -std=c++0x -fPIC -pedantic -mssse3 -O3 -Wno-missing-field-initializers
+CXXFLAGS += -Wno-switch -Wno-multichar -DRS_USE_$(BACKEND)_BACKEND $(LIBUSB_FLAGS) -D_GLIBCXX_USE_NANOSLEEP
+# -std=c0x
 # Add specific include paths for OSX
 ifeq ($(uname_S),Darwin)
 CFLAGS   += -I/usr/local/include
@@ -39,8 +39,8 @@ GLFW3_FLAGS := `pkg-config --cflags --libs glfw3 glu gl`
 endif
 
 # Compute a list of all example program binaries
-EXAMPLES := $(wildcard examples/*.c)
-EXAMPLES += $(wildcard examples/*.cpp)
+#EXAMPLES := $(wildcard examples/*.c)
+#EXAMPLES += $(wildcard examples/*.cpp)
 EXAMPLES := $(addprefix bin/, $(notdir $(basename $(EXAMPLES))))
 
 # Aliases for convenience
@@ -69,11 +69,11 @@ bin/c-%: examples/c-%.c library
 	$(CC) $< $(REALSENSE_FLAGS) $(GLFW3_FLAGS) -o $@
 
 bin/cpp-%: examples/cpp-%.cpp library
-	$(CXX) $< -std=c++11 $(REALSENSE_FLAGS) $(GLFW3_FLAGS) -o $@
+	$(CXX) $< -std=c++0x $(REALSENSE_FLAGS) $(GLFW3_FLAGS) -o $@
 
 # Rules for building the library itself
 lib/librealsense.so: prepare $(OBJECTS)
-	$(CXX) -std=c++11 -shared $(OBJECTS) $(LIBUSB_FLAGS) -o $@
+	$(CXX) -std=c++0x -shared $(OBJECTS) $(LIBUSB_FLAGS) -o $@
 
 lib/librealsense.a: prepare $(OBJECTS)
 	ar rvs $@ `find obj/ -name "*.o"`

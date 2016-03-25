@@ -19,7 +19,10 @@ namespace rsimpl
 
             frame() : timestamp() {}
             frame(const frame & r) = delete;
-            frame(frame && r) : frame() { *this = std::move(r); }
+//            frame(frame && r) : frame() { 
+            frame(frame && r) {
+                *this = std::move(r); 
+            }
 
             frame & operator = (const frame & r) = delete;
             frame & operator = (frame && r) { data = move(r.data); timestamp = r.timestamp; return *this; }            

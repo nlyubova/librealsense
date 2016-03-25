@@ -31,7 +31,9 @@ rs_device::~rs_device()
 bool rs_device::supports_option(rs_option option) const 
 { 
     if(uvc::is_pu_control(option)) return true;
-    for(auto & o : config.info.options) if(o.option == option) return true;
+//    for(auto & o : config.info.options) if(o.option == option) return true;
+    for(std::vector<supported_option>::const_iterator o=config.info.options.begin(); o!=config.info.options.end(); ++o)
+        if(o->option == option) return true;
     return false; 
 }
 
@@ -41,7 +43,9 @@ void rs_device::enable_stream(rs_stream stream, int width, int height, rs_format
     if(config.info.stream_subdevices[stream] == -1) throw std::runtime_error("unsupported stream");
 
     config.requests[stream] = {true, width, height, format, fps};
-    for(auto & s : native_streams) s->archive.reset(); // Changing stream configuration invalidates the current stream info
+//    for(auto & s : native_streams) s->archive.reset(); // Changing stream configuration invalidates the current stream info
+    for(int i=0; i<RS_STREAM_NATIVE_COUNT; ++i)
+        native_streams[i]->archive.reset();
 }
 
 void rs_device::enable_stream_preset(rs_stream stream, rs_preset preset)
@@ -50,7 +54,9 @@ void rs_device::enable_stream_preset(rs_stream stream, rs_preset preset)
     if(!config.info.presets[stream][preset].enabled) throw std::runtime_error("unsupported stream");
 
     config.requests[stream] = config.info.presets[stream][preset];
-    for(auto & s : native_streams) s->archive.reset(); // Changing stream configuration invalidates the current stream info
+//    for(auto & s : native_streams) s->archive.reset(); // Changing stream configuration invalidates the current stream info
+    for(int i=0; i<RS_STREAM_NATIVE_COUNT; ++i)
+        native_streams[i]->archive.reset();
 }
 
 void rs_device::disable_stream(rs_stream stream)
@@ -59,7 +65,9 @@ void rs_device::disable_stream(rs_stream stream)
     if(config.info.stream_subdevices[stream] == -1) throw std::runtime_error("unsupported stream");
 
     config.requests[stream] = {};
-    for(auto & s : native_streams) s->archive.reset(); // Changing stream configuration invalidates the current stream info
+//    for(auto & s : native_streams) s->archive.reset(); // Changing stream configuration invalidates the current stream info
+    for(int i=0; i<RS_STREAM_NATIVE_COUNT; ++i)
+        native_streams[i]->archive.reset();
 }
 
 void rs_device::start()
@@ -70,36 +78,46 @@ void rs_device::start()
     auto archive = std::make_shared<frame_archive>(selected_modes, select_key_stream(selected_modes));
     auto timestamp_reader = create_frame_timestamp_reader();
 
-    for(auto & s : native_streams) s->archive.reset(); // Starting capture invalidates the current stream info, if any exists from previous capture
+//    for(auto & s : native_streams) s->archive.reset(); // Starting capture invalidates the current stream info, if any exists from previous capture
+    for(int i=0; i<RS_STREAM_NATIVE_COUNT; ++i)
+        native_streams[i]->archive.reset();
 
     // Satisfy stream_requests as necessary for each subdevice, calling set_mode and
     // dispatching the uvc configuration for a requested stream to the hardware
-    for(auto mode_selection : selected_modes)
+//    for(auto mode_selection : selected_modes)
+    for(std::vector<rsimpl::subdevice_mode_selection>::const_iterator mode_selection=selected_modes.begin(); mode_selection!=selected_modes.end(); ++mode_selection)
     {
         // Create a stream buffer for each stream served by this subdevice mode
-        for(auto & stream_mode : mode_selection.get_outputs())
+//        for(auto & stream_mode : mode_selection.get_outputs())
+        std::vector<std::pair<rs_stream, rs_format>> outputs = mode_selection->get_outputs();
+        for(std::vector<std::pair<rs_stream, rs_format>>::const_iterator stream_mode=outputs.begin(); stream_mode!=outputs.end(); ++stream_mode)
         {                    
             // If this is one of the streams requested by the user, store the buffer so they can access it
-            if(config.requests[stream_mode.first].enabled) native_streams[stream_mode.first]->archive = archive;
+            if(config.requests[stream_mode->first].enabled) native_streams[stream_mode->first]->archive = archive;
         }
 
         // Initialize the subdevice and set it to the selected mode
-        set_subdevice_mode(*device, mode_selection.mode.subdevice, mode_selection.mode.native_dims.x, mode_selection.mode.native_dims.y, mode_selection.mode.pf.fourcc, mode_selection.mode.fps, 
+        set_subdevice_mode(*device, mode_selection->mode.subdevice, mode_selection->mode.native_dims.x, mode_selection->mode.native_dims.y, mode_selection->mode.pf.fourcc, mode_selection->mode.fps, 
             [mode_selection, archive, timestamp_reader](const void * frame) mutable
         {
             // Ignore any frames which appear corrupted or invalid
-            if(!timestamp_reader->validate_frame(mode_selection.mode, frame)) return;
+            if(!timestamp_reader->validate_frame(mode_selection->mode, frame)) return;
 
             // Determine the timestamp for this frame
-            int timestamp = timestamp_reader->get_frame_timestamp(mode_selection.mode, frame);
+            int timestamp = timestamp_reader->get_frame_timestamp(mode_selection->mode, frame);
 
             // Obtain buffers for unpacking the frame
             std::vector<byte *> dest;
-            for(auto & output : mode_selection.get_outputs()) dest.push_back(archive->alloc_frame(output.first, timestamp));
+//            for(auto & output : mode_selection->get_outputs()) dest.push_back(archive->alloc_frame(output.first, timestamp));
+            std::vector<std::pair<rs_stream, rs_format>> outputs_selected = mode_selection->get_outputs();
+            for(std::vector<std::pair<rs_stream, rs_format>>::const_iterator output=outputs_selected.begin(); output!=outputs_selected.end(); ++output)
 
             // Unpack the frame and commit it to the archive
-            mode_selection.unpack(dest.data(), reinterpret_cast<const byte *>(frame));
-            for(auto & output : mode_selection.get_outputs()) archive->commit_frame(output.first);
+            mode_selection->unpack(dest.data(), reinterpret_cast<const byte *>(frame));
+//            for(auto & output : mode_selection->get_outputs()) archive->commit_frame(output.first);
+            std::vector<std::pair<rs_stream, rs_format>> outputs_archieve = mode_selection->get_outputs();
+            for(std::vector<std::pair<rs_stream, rs_format>>::const_iterator output=outputs_archieve.begin(); output!=outputs_archieve.end(); ++output)
+                archive->commit_frame(output->first);
         });
     }
     
@@ -144,13 +162,14 @@ void rs_device::get_option_range(rs_option option, double & min, double & max, d
         return;
     }
 
-    for(auto & o : config.info.options)
+//    for(auto & o : config.info.options)
+    for(std::vector<supported_option>::const_iterator o=config.info.options.begin(); o!=config.info.options.end(); ++o)
     {
-        if(o.option == option)
+        if(o->option == option)
         {
-            min = o.min;
-            max = o.max;
-            step = o.step;
+            min = o->min;
+            max = o->max;
+            step = o->step;
             return;
         }
     }

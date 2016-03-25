@@ -9,8 +9,44 @@
 #include <climits>
 #include <algorithm>
 
+#if defined(_MSC_VER)
+  #define ALWAYS_INLINE __forceinline
+#elif defined(__GNUC__)
+  #define ALWAYS_INLINE inline __attribute__((always_inline))
+#else
+  #define ALWAYS_INLINE inline
+#endif
+
+
 namespace rsimpl
 {
+const class
+{
+  public:
+#if defined(__GNUC__) && (__GNUC__ == 4) && (__GNUC_MINOR__ == 5) && (__GNUC_PATCHLEVEL < 2)
+  ALWAYS_INLINE operator void*() const // works around bug #45383
+  {
+    return 0;
+  }
+#endif // #if defined(__GNUC__) && (__GNUC__ == 4) && __(__GNUC_MINOR__ == 5) && (__GNUC_PATCHLEVEL < 3)
+
+  template<typename T>
+  ALWAYS_INLINE operator T*() const
+  {
+    return 0;
+  }
+
+  template<class C, typename T>
+  ALWAYS_INLINE operator T C::*() const
+  {
+    return 0;
+  }
+
+  private:
+  void operator &() const; // not implemented on purpose
+
+} nullptr = {};
+
     r200_camera::r200_camera(std::shared_ptr<uvc::device> device, const static_device_info & info) : rs_device(device, info)
     {
         rs_option opt[] = {RS_OPTION_R200_DEPTH_UNITS}; double units;
@@ -35,40 +71,168 @@ namespace rsimpl
         info.stream_subdevices[RS_STREAM_INFRARED2] = 0;
 
         auto c = r200::read_camera_info(*device);
+
+        subdevice_mode dev;
+        dev.subdevice = 1;
+        dev.rect_modes = {};
+        dev.pad_crop_options = {0, -6};
+
+        std::vector<native_pixel_format> pf_all(4);
+        pf_all[0] = pf_y8;
+        pf_all[1] = pf_y8i;
+        pf_all[2] = pf_y16;
+        pf_all[3] = pf_y12i;
         
         // Set up modes for left/right/z images
-        for(auto fps : {30, 60, 90})
+//        for(auto fps : {30, 60, 90})
+        for(int fps =30; fps<=90; fps+=30)
         {
             // Subdevice 0 can provide left/right infrared via four pixel formats, in three resolutions, which can either be uncropped or cropped to match Z
-            for(auto pf : {pf_y8, pf_y8i, pf_y16, pf_y12i})
+//            for(auto pf : {pf_y8, pf_y8i, pf_y16, pf_y12i})
+
+            for(std::vector<native_pixel_format>::const_iterator pf=pf_all.begin(); pf!=pf_all.end(); ++pf)
             {
-                info.subdevice_modes.push_back({0, {640, 481}, pf, fps, c.modesLR[0], {}, {0, -6}});  
-                info.subdevice_modes.push_back({0, {640, 373}, pf, fps, c.modesLR[1], {}, {0, -6}});  
-                info.subdevice_modes.push_back({0, {640, 254}, pf, fps, c.modesLR[2], {}, {0, -6}});  
+                dev.pf = *pf;
+
+                dev.native_dims = {640, 481};
+                dev.fps = fps;
+                dev.native_intrinsics = c.modesLR[0];
+                info.subdevice_modes.push_back(dev);
+
+                dev.native_dims = {640, 373};
+                dev.native_intrinsics = c.modesLR[1];
+                info.subdevice_modes.push_back(dev);
+
+                dev.native_dims = {640, 254};
+                dev.native_intrinsics = c.modesLR[2];
+                info.subdevice_modes.push_back(dev);
+
+//                info.subdevice_modes.push_back({0, {640, 481}, *pf, fps, c.modesLR[0], {}, {0, -6}});  
+//                info.subdevice_modes.push_back({0, {640, 373}, *pf, fps, c.modesLR[1], {}, {0, -6}});  
+//                info.subdevice_modes.push_back({0, {640, 254}, *pf, fps, c.modesLR[2], {}, {0, -6}});
             }
 
             // Subdevice 1 can provide depth, in three resolutions, which can either be unpadded or padded to match left/right
-            info.subdevice_modes.push_back({1, {628, 469}, pf_z16,  fps, pad_crop_intrinsics(c.modesLR[0], -6), {}, {0, +6}});
-            info.subdevice_modes.push_back({1, {628, 361}, pf_z16,  fps, pad_crop_intrinsics(c.modesLR[1], -6), {}, {0, +6}});
-            info.subdevice_modes.push_back({1, {628, 242}, pf_z16,  fps, pad_crop_intrinsics(c.modesLR[2], -6), {}, {0, +6}});
+            dev.pf = pf_z16;
+            dev.pad_crop_options = {0, +6};
+
+            dev.native_dims = {628, 469};
+            dev.native_intrinsics = pad_crop_intrinsics(c.modesLR[0], -6);
+            info.subdevice_modes.push_back(dev);
+
+            dev.native_dims = {628, 361};
+            dev.native_intrinsics = pad_crop_intrinsics(c.modesLR[1], -6);
+            info.subdevice_modes.push_back(dev);
+
+            dev.native_dims = {628, 242};
+            dev.native_intrinsics = pad_crop_intrinsics(c.modesLR[2], -6);
+            info.subdevice_modes.push_back(dev);
+
+//            info.subdevice_modes.push_back({1, {628, 469}, pf_z16,  fps, pad_crop_intrinsics(c.modesLR[0], -6), {}, {0, +6}});
+//            info.subdevice_modes.push_back({1, {628, 361}, pf_z16,  fps, pad_crop_intrinsics(c.modesLR[1], -6), {}, {0, +6}});
+//            info.subdevice_modes.push_back({1, {628, 242}, pf_z16,  fps, pad_crop_intrinsics(c.modesLR[2], -6), {}, {0, +6}});
         }
 
         // Subdevice 2 can provide color, in several formats and framerates
-        info.subdevice_modes.push_back({2, { 320,  240}, pf_yuy2, 60, scale_intrinsics(c.intrinsicsThird[1], 320, 240), {scale_intrinsics(c.modesThird[1][0], 320, 240)}, {0}});
-        info.subdevice_modes.push_back({2, { 320,  240}, pf_yuy2, 30, scale_intrinsics(c.intrinsicsThird[1], 320, 240), {scale_intrinsics(c.modesThird[1][0], 320, 240)}, {0}});
-        info.subdevice_modes.push_back({2, { 640,  480}, pf_yuy2, 60, c.intrinsicsThird[1], {c.modesThird[1][0]}, {0}});
-        info.subdevice_modes.push_back({2, { 640,  480}, pf_yuy2, 30, c.intrinsicsThird[1], {c.modesThird[1][0]}, {0}});
-		info.subdevice_modes.push_back({2, {1920, 1080}, pf_yuy2, 15, c.intrinsicsThird[0], {c.modesThird[0][0]}, {0}});
-        info.subdevice_modes.push_back({2, {1920, 1080}, pf_yuy2, 30, c.intrinsicsThird[0], {c.modesThird[0][0]}, {0}});
-        info.subdevice_modes.push_back({2, {2400, 1081}, pf_rw10, 30, c.intrinsicsThird[0], {c.modesThird[0][0]}, {0}});
+        dev.subdevice = 2;
+        dev.pad_crop_options = {0};
+
+        dev.native_dims = {320,  240};
+        dev.pf = pf_yuy2;
+        dev.fps = 60;
+        dev.native_intrinsics = scale_intrinsics(c.intrinsicsThird[1], 320, 240);
+        dev.rect_modes = {scale_intrinsics(c.modesThird[1][0], 320, 240)};
+        info.subdevice_modes.push_back(dev);
+
+        dev.native_dims = {320,  240};
+        dev.pf = pf_yuy2;
+        dev.fps = 30;
+        dev.native_intrinsics = scale_intrinsics(c.intrinsicsThird[1], 320, 240);
+        dev.rect_modes = {scale_intrinsics(c.modesThird[1][0], 320, 240)};
+        info.subdevice_modes.push_back(dev);
+
+        dev.native_dims = {640,  480};
+        dev.pf = pf_yuy2;
+        dev.fps = 60;
+        dev.native_intrinsics = c.intrinsicsThird[1];
+        dev.rect_modes = {c.modesThird[1][0]};
+        info.subdevice_modes.push_back(dev);
+
+        dev.native_dims = {640,  480};
+        dev.pf = pf_yuy2;
+        dev.fps = 30;
+        dev.native_intrinsics = c.intrinsicsThird[1];                            
+        dev.rect_modes = {c.modesThird[1][0]};
+        info.subdevice_modes.push_back(dev);
+
+        dev.native_dims = {1920, 1080};
+        dev.pf = pf_yuy2;
+        dev.fps = 15;
+        dev.native_intrinsics = c.intrinsicsThird[0];                            
+        dev.rect_modes = {c.modesThird[0][0]};
+        info.subdevice_modes.push_back(dev);
+
+        dev.native_dims = {1920, 1080};
+        dev.pf = pf_yuy2;
+        dev.fps = 30;
+        dev.native_intrinsics = c.intrinsicsThird[0];
+        dev.rect_modes = {c.modesThird[0][0]};
+        info.subdevice_modes.push_back(dev);
+
+        dev.native_dims = {2400, 1081};
+        dev.pf = pf_rw10;
+        dev.fps = 30;
+        dev.native_intrinsics = c.intrinsicsThird[0];
+        dev.rect_modes = {c.modesThird[0][0]};
+        info.subdevice_modes.push_back(dev);
+
+//        info.subdevice_modes.push_back({2, { 320,  240}, pf_yuy2, 60, scale_intrinsics(c.intrinsicsThird[1], 320, 240), {scale_intrinsics(c.modesThird[1][0], 320, 240)}, {0}});
+//        info.subdevice_modes.push_back({2, { 320,  240}, pf_yuy2, 30, scale_intrinsics(c.intrinsicsThird[1], 320, 240), {scale_intrinsics(c.modesThird[1][0], 320, 240)}, {0}});
+//        info.subdevice_modes.push_back({2, { 640,  480}, pf_yuy2, 60, c.intrinsicsThird[1], {c.modesThird[1][0]}, {0}});
+//        info.subdevice_modes.push_back({2, { 640,  480}, pf_yuy2, 30, c.intrinsicsThird[1], {c.modesThird[1][0]}, {0}});
+//		info.subdevice_modes.push_back({2, {1920, 1080}, pf_yuy2, 15, c.intrinsicsThird[0], {c.modesThird[0][0]}, {0}});
+//        info.subdevice_modes.push_back({2, {1920, 1080}, pf_yuy2, 30, c.intrinsicsThird[0], {c.modesThird[0][0]}, {0}});
+//        info.subdevice_modes.push_back({2, {2400, 1081}, pf_rw10, 30, c.intrinsicsThird[0], {c.modesThird[0][0]}, {0}});
 
         // Set up interstream rules for left/right/z images
-        for(auto ir : {RS_STREAM_INFRARED, RS_STREAM_INFRARED2})
-        {
-            info.interstream_rules.push_back({RS_STREAM_DEPTH, ir, &stream_request::width, 0, 12});
-            info.interstream_rules.push_back({RS_STREAM_DEPTH, ir, &stream_request::height, 0, 12});
-            info.interstream_rules.push_back({RS_STREAM_DEPTH, ir, &stream_request::fps, 0, 0});
-        }
+//        for(auto ir : {RS_STREAM_INFRARED, RS_STREAM_INFRARED2})
+//        {
+//            info.interstream_rules.push_back({RS_STREAM_DEPTH, ir, &stream_request::width, 0, 12});
+//            info.interstream_rules.push_back({RS_STREAM_DEPTH, ir, &stream_request::height, 0, 12});
+//            info.interstream_rules.push_back({RS_STREAM_DEPTH, ir, &stream_request::fps, 0, 0});
+//        }
+
+        interstream_rule rule;
+        rule.a = RS_STREAM_DEPTH;
+        rule.b = RS_STREAM_INFRARED;
+        rule.delta = 0;
+
+        rule.field = &stream_request::width;
+        rule.delta2 = 12;
+        info.interstream_rules.push_back(rule);
+
+        rule.field = &stream_request::height;
+        rule.delta2 = 12;
+        info.interstream_rules.push_back(rule);
+
+        rule.field = &stream_request::fps;
+        rule.delta2 = 0;
+        info.interstream_rules.push_back(rule);
+
+        rule.b = RS_STREAM_INFRARED2;
+
+        rule.field = &stream_request::width;
+        rule.delta2 = 12;
+        info.interstream_rules.push_back(rule);
+
+        rule.field = &stream_request::height;
+        rule.delta2 = 12;
+        info.interstream_rules.push_back(rule);
+
+        rule.field = &stream_request::fps;
+        rule.delta2 = 0;
+        info.interstream_rules.push_back(rule);
+
 
         info.presets[RS_STREAM_INFRARED][RS_PRESET_BEST_QUALITY] = {true, 480, 360, RS_FORMAT_Y8,   60};
         info.presets[RS_STREAM_DEPTH   ][RS_PRESET_BEST_QUALITY] = {true, 480, 360, RS_FORMAT_Z16,  60};
@@ -295,16 +459,17 @@ namespace rsimpl
         double depth_units;
 
         uint8_t streamIntent = 0;
-        for(const auto & m : selected_modes)
+//        for(const auto & m : selected_modes)
+        for(std::vector<subdevice_mode_selection>::const_iterator m=selected_modes.begin(); m!=selected_modes.end(); ++m)
         {
-            switch(m.mode.subdevice)
+            switch(m->mode.subdevice)
             {
             case 0: streamIntent |= r200::STATUS_BIT_LR_STREAMING; break;
             case 2: streamIntent |= r200::STATUS_BIT_WEB_STREAMING; break;
             case 1: 
                 streamIntent |= r200::STATUS_BIT_Z_STREAMING; 
                 auto dm = r200::get_disparity_mode(get_device());
-                switch(m.get_format(RS_STREAM_DEPTH))
+                switch(m->get_format(RS_STREAM_DEPTH))
                 {
                 default: throw std::logic_error("unsupported R200 depth format");
                 case RS_FORMAT_Z16: 
@@ -330,30 +495,46 @@ namespace rsimpl
         // To maximize the chance of being able to deliver coherent framesets, we want to wait on the latest image coming from
         // a stream running at the fastest framerate.
         int fps[RS_STREAM_NATIVE_COUNT] = {}, max_fps = 0;
-        for(const auto & m : selected_modes)
+//        for(const auto & m : selected_modes)
+        for(std::vector<subdevice_mode_selection>::const_iterator m=selected_modes.begin(); m!=selected_modes.end(); ++m)
         {
-            for(const auto & output : m.get_outputs())
+//            for(const auto & output : m->get_outputs())
+            for(std::vector<std::pair<rs_stream, rs_format> >::const_iterator output=m->get_outputs().begin(); output!=m->get_outputs().end(); ++output)
             {
-                fps[output.first] = m.mode.fps;
-                max_fps = std::max(max_fps, m.mode.fps);
+                fps[output->first] = m->mode.fps;
+                max_fps = std::max(max_fps, m->mode.fps);
             }
         }
 
         // Select the "latest arriving" stream which is running at the fastest framerate
-        for(auto s : {RS_STREAM_COLOR, RS_STREAM_INFRARED2, RS_STREAM_INFRARED})
-        {
-            if(fps[s] == max_fps) return s;
-        }
+//        for(auto s : {RS_STREAM_COLOR, RS_STREAM_INFRARED2, RS_STREAM_INFRARED})
+//        {
+//            if(fps[s] == max_fps) return s;
+//        }
+        if(fps[RS_STREAM_COLOR] == max_fps) return RS_STREAM_COLOR;
+        if(fps[RS_STREAM_INFRARED2] == max_fps) return RS_STREAM_INFRARED2;
+        if(fps[RS_STREAM_INFRARED] == max_fps) return RS_STREAM_INFRARED;
+
         return RS_STREAM_DEPTH;
     }
 
     uint32_t r200_camera::get_lr_framerate() const
     {
-        for(auto s : {RS_STREAM_DEPTH, RS_STREAM_INFRARED, RS_STREAM_INFRARED2})
-        {
-            auto & stream = get_stream_interface(s);
-            if(stream.is_enabled()) return static_cast<uint32_t>(stream.get_framerate());
-        }
+//        for(auto s : {RS_STREAM_DEPTH, RS_STREAM_INFRARED, RS_STREAM_INFRARED2})
+//        {
+//            auto & stream = get_stream_interface(s);
+//            if(stream.is_enabled()) return static_cast<uint32_t>(stream.get_framerate());
+//        }
+
+            auto & stream_1 = get_stream_interface(RS_STREAM_DEPTH);
+            if(stream_1.is_enabled()) return static_cast<uint32_t>(stream_1.get_framerate());
+
+            auto & stream_2 = get_stream_interface(RS_STREAM_INFRARED);
+            if(stream_2.is_enabled()) return static_cast<uint32_t>(stream_2.get_framerate());
+
+            auto & stream_3 = get_stream_interface(RS_STREAM_INFRARED2);
+            if(stream_3.is_enabled()) return static_cast<uint32_t>(stream_3.get_framerate());
+
         return 30; // If no streams have yet been enabled, return the minimum possible left/right framerate, to allow the maximum possible exposure range
     }
 
@@ -419,7 +600,8 @@ namespace rsimpl
     public:
         dinghy_timestamp_reader(int max_fps) : max_fps(max_fps) {}
 
-        bool validate_frame(const subdevice_mode & mode, const void * frame) const override 
+//        bool validate_frame(const subdevice_mode & mode, const void * frame) const override 
+        bool validate_frame(const subdevice_mode & mode, const void * frame) const
         { 
             // No dinghy available on YUY2 images
             if(mode.pf.fourcc == pf_yuy2.fourcc) return true;
@@ -458,7 +640,8 @@ namespace rsimpl
             return true;
         }
 
-        int get_frame_timestamp(const subdevice_mode & mode, const void * frame) override 
+//        int get_frame_timestamp(const subdevice_mode & mode, const void * frame) override 
+        int get_frame_timestamp(const subdevice_mode & mode, const void * frame)
         { 
             int frame_number = 0;
             if(mode.pf.fourcc == pf_yuy2.fourcc)
@@ -482,8 +665,10 @@ namespace rsimpl
     public:
         serial_timestamp_generator(int fps) : fps(fps), serial_frame_number() {}
 
-        bool validate_frame(const subdevice_mode & mode, const void * frame) const override { return true; }
-        int get_frame_timestamp(const subdevice_mode &, const void *) override 
+//        bool validate_frame(const subdevice_mode & mode, const void * frame) const override { return true; }
+        bool validate_frame(const subdevice_mode & mode, const void * frame) const { return true; }
+//        int get_frame_timestamp(const subdevice_mode &, const void *) override 
+        int get_frame_timestamp(const subdevice_mode &, const void *)
         { 
             ++serial_frame_number;
             return serial_frame_number * 1000 / fps;
@@ -493,17 +678,26 @@ namespace rsimpl
     std::shared_ptr<frame_timestamp_reader> r200_camera::create_frame_timestamp_reader() const
     {
         // If left, right, or Z streams are enabled, convert frame numbers to millisecond timestamps based on LRZ framerate
-        for(auto s : {RS_STREAM_DEPTH, RS_STREAM_INFRARED, RS_STREAM_INFRARED2})
-        {
-            auto & si = get_stream_interface(s);
-            if(si.is_enabled()) return std::make_shared<dinghy_timestamp_reader>(si.get_framerate());
-        }
+//        for(auto s : {RS_STREAM_DEPTH, RS_STREAM_INFRARED, RS_STREAM_INFRARED2})
+//        {
+//            auto & si = get_stream_interface(s);
+//            if(si.is_enabled()) return std::make_shared<dinghy_timestamp_reader>(si.get_framerate());
+//        }
+        auto & si_1 = get_stream_interface(RS_STREAM_DEPTH);
+        if(si_1.is_enabled()) return std::make_shared<dinghy_timestamp_reader>(si_1.get_framerate());
+
+        auto & si_2 = get_stream_interface(RS_STREAM_INFRARED);
+        if(si_2.is_enabled()) return std::make_shared<dinghy_timestamp_reader>(si_2.get_framerate());
+
+        auto & si_3 = get_stream_interface(RS_STREAM_INFRARED2);
+        if(si_3.is_enabled()) return std::make_shared<dinghy_timestamp_reader>(si_3.get_framerate());
 
         // If only color stream is enabled, generate serial frame timestamps (no HW frame numbers available)
         auto & si = get_stream_interface(RS_STREAM_COLOR);
         if(si.is_enabled()) return std::make_shared<serial_timestamp_generator>(si.get_framerate());
 
         // No streams enabled, so no need for a timestamp converter
-        return nullptr;
+//        return nullptr;
+        return std::shared_ptr<frame_timestamp_reader>();
     }
 }

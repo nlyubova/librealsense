@@ -97,7 +97,7 @@ namespace rsimpl
     inline bool operator == (const pose & a, const pose & b) { return a.orientation==b.orientation && a.position==b.position; }
     inline float3 operator * (const pose & a, const float3 & b) { return a.orientation * b + a.position; }
     inline pose operator * (const pose & a, const pose & b) { return {a.orientation * b.orientation, a * b.position}; }
-    inline pose inverse(const pose & a) { auto inv = transpose(a.orientation); return {inv, inv * a.position * -1}; }
+    inline pose inverse(const pose & a) { float3x3 inv = transpose(a.orientation); return {inv, inv * a.position * -1}; }
 
     ///////////////////
     // Pixel formats //
@@ -108,8 +108,8 @@ namespace rsimpl
         void (* unpack)(byte * const dest[], const byte * source, int count);
         std::vector<std::pair<rs_stream, rs_format>> outputs;
 
-        bool provides_stream(rs_stream stream) const { for(auto & o : outputs) if(o.first == stream) return true; return false; }
-        rs_format get_format(rs_stream stream) const { for(auto & o : outputs) if(o.first == stream) return o.second; throw std::logic_error("missing output"); }
+        bool provides_stream(rs_stream stream) const { for(std::vector<std::pair<rs_stream, rs_format>>::const_iterator o=outputs.begin(); o != outputs.end(); ++o) if(o->first == stream) return true; return false; }
+        rs_format get_format(rs_stream stream) const { for(std::vector<std::pair<rs_stream, rs_format>>::const_iterator o=outputs.begin(); o != outputs.end(); ++o) if(o->first == stream) return o->second; throw std::logic_error("missing output"); }
     };
 
     struct native_pixel_format
@@ -207,7 +207,9 @@ namespace rsimpl
 
         device_config(const rsimpl::static_device_info & info) : info(info), depth_scale(info.nominal_depth_scale) 
         { 
-            for(auto & req : requests) req = rsimpl::stream_request(); 
+            //for(auto & req : requests) req = rsimpl::stream_request();
+            for (int i=0; i<RS_STREAM_NATIVE_COUNT; ++i)
+              requests[i] = rsimpl::stream_request();
         }
 
         subdevice_mode_selection select_mode(const stream_request (&requests)[RS_STREAM_NATIVE_COUNT], int subdevice_index) const;
@@ -221,13 +223,27 @@ namespace rsimpl
 
     inline rs_intrinsics pad_crop_intrinsics(const rs_intrinsics & i, int pad_crop)
     {
-        return {i.width+pad_crop*2, i.height+pad_crop*2, i.ppx+pad_crop, i.ppy+pad_crop, i.fx, i.fy, i.model, {i.coeffs[0], i.coeffs[1], i.coeffs[2], i.coeffs[3], i.coeffs[4]}};
+        //return {i.width+pad_crop*2, i.height+pad_crop*2, i.ppx+pad_crop, i.ppy+pad_crop, i.fx, i.fy, i.model, {i.coeffs[0], i.coeffs[1], i.coeffs[2], i.coeffs[3], i.coeffs[4]}};
+        rs_intrinsics out(i);
+        out.width = i.width+pad_crop*2;
+        out.height = i.height+pad_crop*2;
+        out.ppx = i.ppx+pad_crop;
+        out.ppy = i.ppy+pad_crop;
+        return out;
     }
 
     inline rs_intrinsics scale_intrinsics(const rs_intrinsics & i, int width, int height)
     {
         const float sx = (float)width/i.width, sy = (float)height/i.height;
-        return {width, height, i.ppx*sx, i.ppy*sy, i.fx*sx, i.fy*sy, i.model, {i.coeffs[0], i.coeffs[1], i.coeffs[2], i.coeffs[3], i.coeffs[4]}};
+        //return {width, height, i.ppx*sx, i.ppy*sy, i.fx*sx, i.fy*sy, i.model, {i.coeffs[0], i.coeffs[1], i.coeffs[2], i.coeffs[3], i.coeffs[4]}};
+        rs_intrinsics out(i);
+        out.width = width;
+        out.height = height;
+        out.ppx = i.ppx*sx;
+        out.ppy = i.ppy*sy;
+        out.fx = i.fx*sx;
+        out.fy = i.fy*sy;
+        return out;
     }
 
     inline bool operator == (const rs_intrinsics & a, const rs_intrinsics & b) { return std::memcmp(&a, &b, sizeof(a)) == 0; }

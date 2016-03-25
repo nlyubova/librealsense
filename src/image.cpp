@@ -444,7 +444,8 @@ namespace rsimpl
 
     template<class T> void rectify_image_pixels(T * rect_pixels, const std::vector<int> & rectification_table, const T * unrect_pixels)
     {
-        for(auto entry : rectification_table) *rect_pixels++ = unrect_pixels[entry];
+//        for(auto entry : rectification_table) *rect_pixels++ = unrect_pixels[entry];
+        for(std::vector<int>::const_iterator entry=rectification_table.begin(); entry != rectification_table.end(); ++entry) *rect_pixels++ = unrect_pixels[*entry];
     }
 
     void rectify_image(byte * rect_pixels, const std::vector<int> & rectification_table, const byte * unrect_pixels, rs_format format)
